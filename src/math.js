@@ -17,7 +17,7 @@ export function random(seed){let v=typeof seed==='number'?seed:hash32(seed);retu
 const pick=(r,arr)=>arr[Math.floor(r()*arr.length)];
 const randint=(r,min,max)=>Math.floor(r()*(max-min+1))+min;
 const signed=(n,variable='')=>(n<0?`−${Math.abs(n)}`:`+${n}`)+variable;
-const term=(n,variable)=>n===0?'':(n===1?`+${variable}`:n===-1?`−${variable}`:(n>0?`+${n}${variable}`:`−${-n}${variable}`));
+const term=(n,variable='')=>n===0?'':variable===''?(n>0?`+${n}`:`−${-n}`):(n===1?`+${variable}`:n===-1?`−${variable}`:(n>0?`+${n}${variable}`:`−${-n}${variable}`));
 const coef=(n,variable)=>n===1?variable:n===-1?`−${variable}`:`${n}${variable}`;
 export const coordinate=(x,y)=>`(${x}, ${y})`;
 export function quadraticText(a,b,c){return `${coef(a,'x²')}${term(b,'x')}${term(c,'')}`.replace(/^\+/,'')}

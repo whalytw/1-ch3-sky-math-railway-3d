@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {generateQuestion,isCorrect,routeSummary,defaultConfig,subtypeFor,graphValue} from '../src/math.js';
+import {generateQuestion,isCorrect,routeSummary,defaultConfig,subtypeFor,graphValue,quadraticText,vertexText} from '../src/math.js';
 const conf=defaultConfig();assert.equal(routeSummary(conf).count,4);assert.equal(routeSummary(conf).stars,6);
 let cases=0;for(let island=0;island<8;island++)for(let star=1;star<=5;star++)for(let i=0;i<180;i++){
  const q=generateQuestion(island,star,`${island}-${star}-${i}`,'test-shared-'+i);
@@ -13,3 +13,13 @@ let cases=0;for(let island=0;island<8;island++)for(let star=1;star<=5;star++)for
  cases++;
 }
 console.log(`PASS ${cases} 題自動驗證；預設前四島、星等總和6；判別式、極值、最佳化答案一致。`);
+
+// 當常數為 +/-1 時，不可誤把常數 1 省略成空字串（V0.2 題目顯示缺字）。
+assert.equal(quadraticText(1,3,-1),'x²+3x−1');
+assert.equal(quadraticText(1,3,1),'x²+3x+1');
+assert.equal(quadraticText(-1,-1,-1),'−x²−x−1');
+assert.equal(quadraticText(1,0,1),'x²+1');
+assert.equal(vertexText(1,2,-1),'(x−2)²−1');
+assert.equal(vertexText(-1,-2,1),'−(x+2)²+1');
+for(let i=0;i<12000;i++){let c=i%3-1,b=i%9-4;const q=quadraticText(1,b,c);if(c===-1)assert.ok(q.endsWith('−1'),q);if(c===1)assert.ok(q.endsWith('+1'),q)}
+console.log('PASS constant ±1 notation regression tests');

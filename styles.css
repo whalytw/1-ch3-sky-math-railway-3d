@@ -53,3 +53,8 @@ html,body{color:#eef7ff}
 .lane[data-phase="question"] .lane-main{overflow-y:auto;overscroll-behavior:contain}
 .lane[data-phase="explain"] .world-window{height:clamp(210px,27vh,330px)}
 @media(max-height:780px){.lane[data-phase="question"] .world-window{height:250px}}
+
+/* V0.3 全螢幕模式：三人共用畫面維持寬度比例，短螢幕允許上下捲動。 */
+#app:fullscreen, #app:-webkit-full-screen{width:100%;min-height:100vh;height:100dvh;overflow-x:hidden;overflow-y:auto;background:#071522;}
+#app:fullscreen .main-layout, #app:-webkit-full-screen .main-layout{max-width:none;width:100%;}
+#fullscreenBtn[aria-pressed="true"]{border-color:#70e1d8;color:#b3fff0;background:#14515c;}

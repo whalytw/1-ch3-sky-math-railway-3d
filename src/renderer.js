@@ -188,15 +188,7 @@ export class SkyRenderer{
  }
 
  drawGeometry(buf,count,mvp,eye){if(!count)return;const gl=this.gl;this.bindBuffer(buf);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(mvp));gl.uniform3fv(this.eye,new Float32Array(eye));gl.drawArrays(gl.TRIANGLES,0,count)}
- makeTrain(p,t,graphHeight){const g=new Geometry();let x=-3.25;
-  if(p.phase==='travel'||p.phase==='success'){const ease=t*t*(3-2*t);x=-3.9+7.5*ease;}else if(p.phase==='question'||p.phase==='explain')x=-2.95;else if(p.phase==='complete')x=3.55;
-  const y=graphHeight(clamp(x,-4,4))+.16,paint=['#51ccdd','#e5a15c','#7dd19c'][p.lane];
-  g.box(x,y+.18,0,.68,.23,.56,paint);g.box(x-.09,y+.38,0,.42,.27,.45,'#274963');g.box(x-.09,y+.54,0,.50,.10,.51,'#f5d18b');g.box(x+.32,y+.27,0,.22,.15,.42,'#f4ebc7');
-  for(let offset of [-.23,.24])for(let z of [-.30,.30])g.sphere(x+offset,y-.02,z,.125,'#142b37',8,5);
-  g.sphere(x+.43,y+.31,0,.10,'#fff7b8',8,5);
-  if(p.phase==='success'){for(let i=0;i<9;i++){let phi=i*2.399+t*4;g.sphere(x+Math.sin(phi)*.58,y+.4+Math.cos(phi)*.54,.2*Math.sin(phi*2),.065,i%2?'#fff0a9':'#73f7df',5,3)}}
-  return g.array();
- }
+ // 礦車僅由 followCamera() 回傳的沿軌位置生成，杜絕舊版重複 makeTrain 定義造成瞬移。
  frame(players,now=performance.now()){
   if(this.lastTime){this.framesSince++;if(now-this.frameStart>=1000){this.realFps=Math.round(1000*this.framesSince/(now-this.frameStart));this.frameStart=now;this.framesSince=0}}else this.frameStart=now;this.lastTime=now;
   this.resize();const gl=this.gl,bb=this.board.getBoundingClientRect(),w=this.canvas.width,h=this.canvas.height;gl.useProgram(this.program);

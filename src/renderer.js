@@ -56,33 +56,137 @@ export class SkyRenderer{
   }
   return graph;
  }
- makeHeightFn(p){const graph=this.curveInfo(p);if(!graph||graph.type==='points')return x=>.2+0.32*Math.sin(x*0.95+(p.currentIsland||0)*.8);
-  let hi=0;for(let i=0;i<=50;i++){let x=-3.4+i*6.8/50;hi=Math.max(hi,Math.abs(graphValue(graph,x)))}const scale=1/Math.max(1,hi/4.6);return x=>clamp(0.35+graphValue(graph,x)*scale*.40,-1.6,2.6);
+ makeHeightFn(p){
+  // 只在中央 -4..4 區間保留課本函數的形狀；前後是供駕駛鏡頭體驗的接近與離站軌道。
+  const graph=this.curveInfo(p); const island=p.currentIsland||0;
+  const base=(!graph||graph.type==='points')?(x=>0.24+0.18*Math.sin(x*.86+island)):(()=>{
+    let max=0;for(let i=0;i<=60;i++){const x=-4+i*8/60;max=Math.max(max,Math.abs(graphValue(graph,x)));}
+    const scale=1/Math.max(1,max/5);return x=>clamp(.3+graphValue(graph,x)*scale*.43,-1.6,2.6);
+  })();
+  return x=>{
+    if(x<-4){const d=x+4;return base(-4)+.18*Math.sin(d*.52)+.035*d;}
+    if(x>4){const d=x-4;return base(4)+.22*Math.sin(d*.46)-.025*d;}
+    return base(x);
+  };
  }
+ pathZ(x){
+   // 與數學內容分開的空間轉彎；數學主軌 -4..4 在 z=0 平面，側面看仍是正確函數圖。
+   if(x<-4){const d=x+4;return 1.2*Math.sin(d*.28)*(1-Math.exp(d*.44));}
+   if(x>4){const d=x-4;return 1.9*Math.sin(d*.20)*(1-Math.exp(-d*.42));}
+   return 0;
+ }
+ pointAt(x,height){return [x,height(x),this.pathZ(x)];}
  makeScene(p){const g=new Geometry(),index=p.currentIsland??0,palette=PALETTES[index],height=this.makeHeightFn(p),accent=palette.accent;
-  // 島嶼：分層低面數岩石、上層草皮與小島群，三區共用材質概念而不複製 WebGL Context。
-  for(let j=0;j<6;j++){const x=-7+j*2.65+(j%2)*.35,z=-3.4-(j%3)*1.9,y=-2.6+Math.sin(j+index)*.36,r=1.25+(j%3)*.33;g.cone(x,y+.5,y-1.55,z,r,palette.soil,7);g.cone(x,y+.54,y+.33,z,r*1.04,palette.grass,7);g.box(x,y+.55,z,r*1.4,.13,r*1.3,palette.grass)}
-  for(let j=0;j<5;j++){const x=-6.1+j*3.1,z=-7.0-(j%2)*1.5,y=-1.8+(j%3)*.31;g.sphere(x,y,z,.72,'#e7f3f0',7,5);g.sphere(x+.7,y-.08,z+.2,.53,'#d4e8ed',7,5);g.sphere(x-.6,y-.1,z-.1,.49,'#d8e7ed',7,5)}
-  // 靠近鏡頭的懸浮軌道支架，避免整個場景看起來只有一條漂浮線。
-  for(let j=0;j<5;j++){const x=-5.3+j*2.65,z=-1.65;j%2===0&&g.cone(x,-1.8,-4.5,z,.82,palette.soil,7);}
-  const pts=[];for(let i=0;i<=62;i++){let x=-4+i*8/62;pts.push([x,height(x),0]);}
-  for(let k=0;k<pts.length-1;k++){let a=pts[k],b=pts[k+1];for(let side of [-1,1])g.rod([a[0],a[1],side*.20],[b[0],b[1],side*.20],.062,.073,k%6===0?'#bceef3':'#88c8d6');g.rod([a[0],a[1]-.07,0],[b[0],b[1]-.07,0],.11,.56,'#3b596a')}
-  for(let k=0;k<=32;k++){const x=-4+k*.25,y=height(x)-.07;g.box(x,y-.055,0,.08,.08,.65,k%4===0?'#d29f64':'#916b56');}
-  for(let k=0;k<9;k++){const x=-3.8+k*.95,y=height(x)-.15;g.box(x,y-.44,0,.055,.86,.07,'#568095');}
-  for(let j=0;j<6;j++){const x=-6+j*2.25,z=-3.7-(j%3);const y=-1.5;g.box(x,y+.58,z,.12,1.16,.12,'#6d746f');g.cone(x,y+2.05,y+.66,z,.45,palette.tree,7)}
-  // 島嶼特色機關：同一幾何基礎，替換主題裝置。
-  if(index===0){for(let s of [-1,1]){g.box(2.6*s,.2,-1.2,.12,2,.12,'#a7ecf6');g.box(2.6*s,1.18,-1.2,.82,.14,.28,accent);g.box(2.6*s,-.64,-1.2,.82,.14,.28,accent);}}
-  if(index===1){for(let s of [-1,1]){g.box(s*2.3,-.68,-1.5,.9,1.1,.8,'#30576b');g.sphere(s*2.3,.25,-1.5,.35,accent,8,5)}}
-  if(index===2){g.rod([-3,-1.7,-1.2],[1,1.4,-1.2],.16,.16,'#d3b17a');g.rod([-2.8,-1.7,-1.7],[1.2,1.4,-1.7],.12,.1,'#efcf9b')}
-  if(index===3){for(let s of [-1,1]){g.box(s*2.6,-1.4,-2.1,.8,.9,.9,'#6e598b');g.sphere(s*2.6,.1,-2.1,.35,'#f0bee9',8,4)}}
-  if(index===4){g.box(2.6,-1.35,-1.6,1.25,1.4,.8,'#6685ae');g.box(2.6,-.48,-1.6,1.6,.16,.99,'#a7c7ea');g.pyramid(2.6,.4,-1.6,1,.5,'#a7c7ea')}
-  if(index===5){for(let j=0;j<3;j++){const x=(j-1)*1.9;g.box(x,-1.18,-2.3,.35,1.3,.45,'#769db9');g.sphere(x,-.45,-2.3,.28,accent,7,5)}}
-  if(index===6){for(let j=0;j<5;j++){const x=-3.6+j*1.8;g.pyramid(x,-.65,-2,0.55,1.2,j%2?'#ffc875':'#71d8a7')}}
-  if(index===7){for(let j=0;j<5;j++){const x=-3.8+j*1.9;g.box(x,-1.25,-2.7,1.05,.9,.85,j%2?'#de9fab':'#ca8799');g.pyramid(x,-.52,-2.7,1.3,.66,'#f3d19a')}}
-  // 終點傳送門。
-  let gy=height(3.6);g.box(3.65,gy+.93,0,.13,1.8,.9,accent);g.box(3.65,gy+1.87,0,.13,.11,.9,'#f7e1a0');g.sphere(3.65,gy+2.12,0,.15,'#ffe49a',7,5);
-  return {data:g.array(),height};
+   // 世界沿礦車行車方向延伸，景物有遠近差異，車內攝影機可感受視差與迎面而來的軌道。
+   for(let j=0;j<29;j++){
+     const x=-17+j*1.28,side=j%2?1:-1,z=this.pathZ(x)+side*(3.0+(j%4)*1.55);
+     const y=-3.4+(j%4)*.29,rad=1.25+(j%3)*.52;
+     g.cone(x,y+.48,y-1.65,z,rad,palette.soil,7);
+     g.cone(x,y+.58,y+.34,z,rad*1.04,palette.grass,7);
+     g.box(x,y+.63,z,rad*1.30,.14,rad*1.33,palette.grass);
+     if(j%3!==0){g.box(x-.15,y+1.2,z,.13,1.1,.13,'#56746c');g.cone(x-.15,y+2.06,y+1.42,z,.59,palette.tree,7);}
+     if(j%5===0){g.sphere(x+1.7,y+2.75,z,.68,'#e5f4ed',8,5);g.sphere(x+2.3,y+2.64,z+.35,.48,'#d7ebf1',7,4);}
+   }
+   // 主行車線：木枕、兩條金屬軌、中央承托樑，前方各節可看見彎曲方向。
+   const pts=[];const segments=170;for(let j=0;j<=segments;j++){const x=-15+j*33/segments;pts.push(this.pointAt(x,height));}
+   for(let j=0;j<segments;j++){
+     const a=pts[j],b=pts[j+1];
+     for(const side of [-1,1]){
+       g.rod([a[0],a[1]+.10,a[2]+side*.32],[b[0],b[1]+.10,b[2]+side*.32],.085,.080,j%9===0?'#f9e7bd':'#b7d9e0');
+     }
+     g.rod([a[0],a[1]-.06,a[2]],[b[0],b[1]-.06,b[2]],.14,.57,'#436477');
+   }
+   for(let j=0;j<=82;j++){const x=-14.9+j*.39,pt=this.pointAt(x,height);g.box(x,pt[1]-.055,pt[2],.14,.13,.88,j%5===0?'#c9975e':'#9b7457');}
+   // 懸空橋墩及發光導引燈。
+   for(let j=0;j<19;j++){
+      const x=-14+j*1.75,pt=this.pointAt(x,height),z=pt[2];
+      g.box(x,pt[1]-1.0,z,.10,1.85,.14,'#557e93');
+      for(const side of [-1,1]){
+        g.box(x,pt[1]+.08,z+side*.65,.12,.15,.10,'#42768a');
+        g.sphere(x,pt[1]+.21,z+side*.65,.11,j%2?'#f4d58b':'#9deceb',6,4);
+      }
+   }
+   // 穿越拱門讓車速與距離感更明顯；拱門位置選在中央數學軌道之外。
+   for(const ax of [-11.0,-7.4,6.3,11.5,15.4]){
+      const pt=this.pointAt(ax,height),y=pt[1],z=pt[2];
+      g.box(ax,y+1.35,z-1.35,.24,2.65,.28,palette.soil);
+      g.box(ax,y+1.35,z+1.35,.24,2.65,.28,palette.soil);
+      g.box(ax,y+2.63,z,.25,.20,3.0,accent);
+      g.sphere(ax,y+2.87,z,.19,'#fff3c2',8,5);
+   }
+   // 每座島的主題機關設置於軌道附近，玩家接近時能看見其形狀。
+   if(index===0){for(const z of [-2.5,2.5]){g.box(0,.3,z,.3,2.2,.18,'#a7ecf6');g.box(0,1.48,z,1.25,.16,.22,accent);}}
+   if(index===1){for(const z of [-2.4,2.4]){g.box(1,-.6,z,1.0,1.6,.7,'#30576b');g.sphere(1,.5,z,.42,accent,8,5)}}
+   if(index===2){g.rod([-2,-1.7,-2.2],[2,1.6,-2.2],.22,.22,'#f4d398')}
+   if(index===3){for(const z of [-2.3,2.3]){g.box(1,-1.25,z,.9,1.0,.9,'#6e598b');g.sphere(1,.1,z,.45,'#f0bee9',8,4)}}
+   if(index===4){g.box(0,-1.0,-2.3,1.5,1.3,1.1,'#6685ae');g.pyramid(0,-.1,-2.3,1.35,.65,'#b5d8f6')}
+   if(index===5){for(let j=0;j<3;j++){g.box(j*1.6-2,-1.1,-2.5,.45,1.6,.6,'#769db9');g.sphere(j*1.6-2,-.15,-2.5,.35,accent,7,5)}}
+   if(index===6){for(let j=0;j<4;j++)g.pyramid(j*1.45-2,-.5,-2.5,.8,1.3,j%2?'#f5d08d':'#79d8ab')}
+   if(index===7){for(let j=0;j<4;j++){const x=-2+j*1.5;g.box(x,-1.25,-2.9,1.1,1,.9,'#ca8799');g.pyramid(x,-.5,-2.9,1.3,.7,'#f3d19a')}}
+   const gate=this.pointAt(4.5,height);
+   g.box(gate[0],gate[1]+1.12,gate[2]-1.05,.18,2.2,.18,accent);
+   g.box(gate[0],gate[1]+1.12,gate[2]+1.05,.18,2.2,.18,accent);
+   g.box(gate[0],gate[1]+2.20,gate[2],.18,.16,2.18,'#f7e1a0');
+   return {data:g.array(),height};
  }
+ makeCockpit(p,camX,height){
+   const g=new Geometry(),pt=this.pointAt(camX,height),x=pt[0],y=pt[1],z=pt[2];
+   const paint=['#39bfd9','#e8a45d','#64ce99'][p.lane];
+   // 車內視角：眼前的礦車鼻端與前方護欄，攝影機位於兩側護欄後方。
+   g.box(x+.70,y+.30,z,.84,.18,.92,paint);
+   g.box(x+.94,y+.40,z,.30,.18,.77,'#f4cf88');
+   g.box(x+.52,y+.33,z-.52,.82,.29,.17,'#315a6b');
+   g.box(x+.52,y+.33,z+.52,.82,.29,.17,'#315a6b');
+   g.rod([x+.10,y+.38,z-.48],[x+.91,y+.64,z-.48],.12,.13,'#d9ece4');
+   g.rod([x+.10,y+.38,z+.48],[x+.91,y+.64,z+.48],.12,.13,'#d9ece4');
+   g.box(x+.93,y+.55,z,.09,.27,1.05,'#e6f4ee');
+   for(const side of [-1,1])g.sphere(x+.98,y+.66,z+side*.49,.095,'#fff4b9',7,4);
+   return g.array();
+ }
+ makeTrain(p,x,height){
+   const g=new Geometry(),pt=this.pointAt(x,height),y=pt[1],z=pt[2];
+   const paint=['#51ccdd','#e5a15c','#7dd19c'][p.lane];
+   // 第三人稱追隨攝影機能看見：軌道車的箱體、車輪、護欄，以及確實坐在礦車裡的卡通主角。
+   g.box(x,y+.29,z,.96,.34,.78,paint);
+   g.box(x+.39,y+.39,z,.18,.33,.84,'#e8d49e');
+   g.box(x-.41,y+.44,z,.16,.50,.82,'#214c66');
+   g.box(x,y+.17,z-.47,.85,.28,.11,'#244e64');
+   g.box(x,y+.17,z+.47,.85,.28,.11,'#244e64');
+   for(const dx of [-.31,.29])for(const side of [-1,1]){
+     g.sphere(x+dx,y+.005,z+side*.46,.15,'#162937',8,5);
+     g.sphere(x+dx,y+.005,z+side*.49,.068,'#a6c8da',6,4);
+   }
+   // 主角面向行車方向 x 正向，從後方鏡頭可以看到帽子、頭、身體與雙臂。
+   g.box(x-.14,y+.70,z,.30,.43,.32,'#f4d8a2');
+   g.box(x-.20,y+.81,z,.34,.31,.37,'#284d86');
+   g.sphere(x-.22,y+1.12,z,.22,'#f7d9b8',10,6);
+   g.sphere(x-.25,y+1.23,z,.235,'#59432c',9,4);
+   g.box(x-.07,y+1.25,z,.27,.06,.43,'#edb16a');
+   g.rod([x-.13,y+.82,z-.22],[x+.29,y+.49,z-.34],.13,.13,'#f6d1b2');
+   g.rod([x-.13,y+.82,z+.22],[x+.29,y+.49,z+.34],.13,.13,'#f6d1b2');
+   g.sphere(x+.49,y+.43,z,.105,'#fff5bb',8,5);
+   return g.array();
+ }
+ followCamera(p,now,height){
+   let x=-12.8;
+   const progress=clamp(p.animProgress||0,0,1),ease=t=>t*t*(3-2*t);
+   if(p.phase==='travel')x=-13.4+8.8*ease(progress);
+   else if(p.phase==='success')x=-4.6+20.0*ease(progress);
+   else if(p.phase==='question'||p.phase==='explain')x=-4.6;
+   else if(p.phase==='complete')x=14.9;
+   const targetPoint=this.pointAt(Math.min(x+2.4,17.5),height),pt=this.pointAt(x,height);
+   const moving=p.phase==='travel'||p.phase==='success',bob=moving?Math.sin(now*.009+p.lane*2)*.026:0;
+   if(p.cameraMode==='inside'){
+     const eye=[x-.13,pt[1]+.89+bob,pt[2]];
+     return {x,eye,target:[targetPoint[0],targetPoint[1]+.24,targetPoint[2]]};
+   }
+   // 攝影機追隨礦車後方稍高的位置，讓主角留在畫面近處，視線朝軌道前景。
+   const behind=this.pointAt(x-2.8,height);
+   const eye=[behind[0],behind[1]+1.88+bob,behind[2]+.56];
+   const at=[x+1.50,(pt[1]*.45+targetPoint[1]*.55)+.49,pt[2]*.45+targetPoint[2]*.55];
+   return {x,eye,target:at};
+ }
+
  drawGeometry(buf,count,mvp,eye){if(!count)return;const gl=this.gl;this.bindBuffer(buf);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(mvp));gl.uniform3fv(this.eye,new Float32Array(eye));gl.drawArrays(gl.TRIANGLES,0,count)}
  makeTrain(p,t,graphHeight){const g=new Geometry();let x=-3.25;
   if(p.phase==='travel'||p.phase==='success'){const ease=t*t*(3-2*t);x=-3.9+7.5*ease;}else if(p.phase==='question'||p.phase==='explain')x=-2.95;else if(p.phase==='complete')x=3.55;
@@ -102,10 +206,14 @@ export class SkyRenderer{
     gl.viewport(x,y,rw,rh);gl.scissor(x,y,rw,rh);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     const p=players[i];if(!p)continue;
     const key=this.sceneKey(p);if(key!==this.cacheKeys[i]){const scene=this.makeScene(p);this.cacheKeys[i]=key;this.sceneHeights??=[null,null,null];this.sceneHeights[i]=scene.height;gl.bindBuffer(gl.ARRAY_BUFFER,this.staticBuf[i]);gl.bufferData(gl.ARRAY_BUFFER,scene.data,gl.STATIC_DRAW);this.staticCount[i]=scene.data.length/9;}
-    let camPhase=p.phase==='travel'||p.phase==='success'?(now/1500)%6:0;
-    const eye=[Math.sin(now/6000+i)*.31,3.75+Math.sin(camPhase)*.08,11.2];const at=[.1,.05,0];const view=lookAt(eye,at,[0,1,0]);const proj=perspective(Math.PI/3.8,rw/rh,.1,70),mvp=matMul(proj,view);
+    const height=this.sceneHeights?.[i]||(()=>0);
+    const camera=this.followCamera(p,now,height);
+    const eye=camera.eye,view=lookAt(eye,camera.target,[0,1,0]);
+    const proj=perspective(Math.PI/2.9,rw/rh,.07,90),mvp=matMul(proj,view);
     this.drawGeometry(this.staticBuf[i],this.staticCount[i],mvp,eye);
-    const train=this.makeTrain(p,p.animProgress??0,this.sceneHeights?.[i]||(()=>0));gl.bindBuffer(gl.ARRAY_BUFFER,this.dynamicBuf);gl.bufferData(gl.ARRAY_BUFFER,train,gl.DYNAMIC_DRAW);this.drawGeometry(this.dynamicBuf,train.length/9,mvp,eye);
+    const cockpit=p.cameraMode==='inside'?this.makeCockpit(p,camera.x,height):this.makeTrain(p,camera.x,height);
+    gl.bindBuffer(gl.ARRAY_BUFFER,this.dynamicBuf);gl.bufferData(gl.ARRAY_BUFFER,cockpit,gl.DYNAMIC_DRAW);
+    this.drawGeometry(this.dynamicBuf,cockpit.length/9,mvp,eye);
   }
  }
  destroy(){const gl=this.gl;this.staticBuf.forEach(b=>gl.deleteBuffer(b));gl.deleteBuffer(this.dynamicBuf);gl.deleteProgram(this.program)}
@@ -116,32 +224,67 @@ export class CanvasFallbackRenderer{
  constructor(canvas,board,windows){this.canvas=canvas;this.board=board;this.windows=windows;this.ctx=canvas.getContext('2d',{alpha:true});if(!this.ctx)throw Error('Canvas 2D 也無法使用');this.quality='low';this.realFps=0;this.framesSince=0;this.frameStart=0;this.lastDraw=0;this.ratio=1}
  setQuality(q){this.quality=q}
  resize(){const b=this.board.getBoundingClientRect(),scale=Math.min(devicePixelRatio||1,1.25)*.9;const w=Math.round(b.width*scale),h=Math.round(b.height*scale);if(w!==this.canvas.width||h!==this.canvas.height){this.canvas.width=w;this.canvas.height=h;}this.ratio=scale}
- drawBackdrop(ctx,w,h,index,now){const pal=PALETTES[index],gradient=ctx.createLinearGradient(0,0,0,h);gradient.addColorStop(0,'#245372');gradient.addColorStop(.7,'#5092a0');gradient.addColorStop(1,'#8ec3bd');ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
-   const sun=ctx.createRadialGradient(w*.77,h*.22,4,w*.77,h*.22,w*.42);sun.addColorStop(0,'#fff6c34d');sun.addColorStop(1,'#fff6c300');ctx.fillStyle=sun;ctx.fillRect(0,0,w,h);
-   for(let j=0;j<5;j++){const xx=w*(.05+j*.23)+Math.sin(now/9000+j)*8,yy=h*(.14+(j%3)*.12);ctx.fillStyle='#e6f7fb50';for(let c=0;c<3;c++){ctx.beginPath();ctx.ellipse(xx+c*18,yy+8-c%2*6,28-c*5,10,0,0,Math.PI*2);ctx.fill();}}
-   for(let j=0;j<5;j++){const x=w*(.02+j*.25),y=h*(.73-(j%3)*.12),rw=30+j%3*10;ctx.beginPath();ctx.moveTo(x-rw,y);ctx.lineTo(x+rw,y);ctx.lineTo(x+rw*.45,y+35);ctx.lineTo(x,y+65);ctx.lineTo(x-rw*.45,y+35);ctx.closePath();ctx.fillStyle=pal.soil;ctx.fill();ctx.beginPath();ctx.ellipse(x,y,rw,9,0,0,Math.PI*2);ctx.fillStyle=pal.grass;ctx.fill();ctx.fillStyle=pal.tree;ctx.fillRect(x-2,y-21,4,15);ctx.beginPath();ctx.moveTo(x-14,y-17);ctx.lineTo(x+14,y-17);ctx.lineTo(x,y-42);ctx.fill()}
-   ctx.save();ctx.strokeStyle='#dbf7ff44';ctx.lineWidth=1;for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(w*.78,h*.31,25+i*17,Math.PI*.1,Math.PI*.88);ctx.stroke()}ctx.restore();
+ drawBackdrop(ctx,w,h,index,now){
+   const pal=PALETTES[index],gradient=ctx.createLinearGradient(0,0,0,h);
+   gradient.addColorStop(0,'#275d85');gradient.addColorStop(.58,'#80b6c8');gradient.addColorStop(1,'#d3c3a8');
+   ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
+   const sun=ctx.createRadialGradient(w*.80,h*.17,5,w*.80,h*.17,w*.40);
+   sun.addColorStop(0,'#ffecd599');sun.addColorStop(1,'#ffecd500');ctx.fillStyle=sun;ctx.fillRect(0,0,w,h);
+   for(let j=0;j<5;j++){
+     const xx=w*(.08+j*.23)+Math.sin(now/7000+j)*8,yy=h*(.12+(j%3)*.1);
+     ctx.fillStyle='#f3faff70';for(let c=0;c<3;c++){ctx.beginPath();ctx.ellipse(xx+c*16,yy+6-(c%2)*5,27-c*5,11,0,0,Math.PI*2);ctx.fill();}
+   }
  }
  frame(players,now=performance.now()){
-  if(now-this.lastDraw<34)return;this.lastDraw=now;this.framesSince++;if(!this.frameStart)this.frameStart=now;if(now-this.frameStart>=1000){this.realFps=Math.round(this.framesSince*1000/(now-this.frameStart));this.frameStart=now;this.framesSince=0;}
-  this.resize();const ctx=this.ctx,bb=this.board.getBoundingClientRect(),ratio=this.ratio;ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
-  for(let i=0;i<3;i++){const rect=this.windows[i].getBoundingClientRect(),w=rect.width,h=rect.height;if(w<10||h<10)continue;const x=(rect.left-bb.left),y=rect.top-bb.top,p=players[i],ind=p.currentIsland??0,pl=PALETTES[ind];
-   ctx.save();ctx.beginPath();ctx.rect(x*ratio,y*ratio,w*ratio,h*ratio);ctx.clip();ctx.translate(x*ratio,y*ratio);ctx.scale(ratio,ratio);this.drawBackdrop(ctx,w,h,ind,now);
-   let graph=p.question?.graph;
-   if(p.phase==='question'&&graph){if(ind===2)graph={type:'linear',a:Number(p.reply?.a??1),b:Number(p.reply?.b??0)};else if(ind===3){let a=Number(p.reply?.a??1),hh=Number(p.reply?.h??0),k=Number(p.reply?.k??0);graph={type:'quadratic',a,b:-2*a*hh,c:a*hh*hh+k}}else if(ind===4){const a=graph.a,hh=Number(p.reply?.h??0),k=Number(p.reply?.k??0);graph={type:'quadratic',a,b:-2*a*hh,c:a*hh*hh+k}}}
-   let maxY=3;for(let j=0;j<22;j++){const t=-3+j*6/21;maxY=Math.max(maxY,Math.abs(graph&&graph.type!=='points'?graphValue(graph,t):3))}const norm=1/Math.max(1,maxY/4);
-   const yy=t=>h*.53-(graph&&graph.type!=='points'?graphValue(graph,t)*norm*.17*h:Math.sin(t*1.3+ind)*.07*h);
-   const xx=t=>w*.5+t*w*.119;
-   // 橋面支架、下層陰影與兩條軌道。
-   ctx.strokeStyle='#25576c';ctx.lineWidth=13;ctx.beginPath();for(let s=0;s<=64;s++){let t=-3.8+s*7.6/64;if(s===0)ctx.moveTo(xx(t),yy(t)+13);else ctx.lineTo(xx(t),yy(t)+13)}ctx.stroke();
-   ctx.strokeStyle='#39506b';ctx.lineWidth=8;ctx.beginPath();for(let s=0;s<=64;s++){let t=-3.8+s*7.6/64;if(s===0)ctx.moveTo(xx(t),yy(t)+4);else ctx.lineTo(xx(t),yy(t)+4)}ctx.stroke();
-   for(let s=0;s<=28;s++){let t=-3.7+s*7.4/28;const X=xx(t),Y=yy(t);ctx.strokeStyle='#8a6a51';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(X-2,Y-6);ctx.lineTo(X+2,Y+14);ctx.stroke();}
-   for(let offset of [-5,5]){ctx.lineWidth=4;ctx.strokeStyle=offset<0?'#bff5f3':'#6bd7e1';ctx.beginPath();for(let s=0;s<=64;s++){let t=-3.8+s*7.6/64;if(s===0)ctx.moveTo(xx(t),yy(t)+offset);else ctx.lineTo(xx(t),yy(t)+offset)}ctx.stroke()}
-   for(let s=0;s<6;s++){const t=-3.2+s*1.17,X=xx(t),Y=yy(t);ctx.strokeStyle='#c6e7ea88';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(X,Y+10);ctx.lineTo(X,Y+35);ctx.stroke()}
-   let tx=-2.8;if(p.phase==='travel'||p.phase==='success')tx=-3.8+7.2*(p.animProgress||0);else if(p.phase==='complete')tx=3.2;const X=xx(tx),Y=yy(tx)-12;
-   ctx.save();ctx.translate(X,Y);ctx.shadowColor='#122e3c';ctx.shadowBlur=10;ctx.shadowOffsetY=5;ctx.fillStyle=['#54c8d7','#e6a65e','#7ccc9d'][i];ctx.fillRect(-20,-9,40,22);ctx.fillStyle='#e6d9a3';ctx.fillRect(-14,-20,27,12);ctx.fillStyle='#26445b';ctx.fillRect(-11,-18,18,10);ctx.fillStyle='#fff4b4';ctx.fillRect(14,-2,8,8);ctx.shadowBlur=0;for(let wx of [-12,12]){ctx.fillStyle='#143145';ctx.beginPath();ctx.arc(wx,16,7,0,Math.PI*2);ctx.fill();ctx.fillStyle='#a9d9e6';ctx.beginPath();ctx.arc(wx,16,3,0,Math.PI*2);ctx.fill()}ctx.restore();
-   if(p.phase==='success'){for(let j=0;j<14;j++){let phi=j*2.399+now/800;ctx.fillStyle=j%2?'#ffda88':'#89ffed';ctx.beginPath();ctx.arc(X+Math.cos(phi)*(25+j%3*11),Y+Math.sin(phi)*(13+j%3*12),2.5,0,Math.PI*2);ctx.fill()}}
-   ctx.restore();
-  }
+   if(now-this.lastDraw<34)return;this.lastDraw=now;this.framesSince++;if(!this.frameStart)this.frameStart=now;
+   if(now-this.frameStart>=1000){this.realFps=Math.round(this.framesSince*1000/(now-this.frameStart));this.frameStart=now;this.framesSince=0;}
+   this.resize();const ctx=this.ctx,bb=this.board.getBoundingClientRect(),ratio=this.ratio;
+   ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+   for(let i=0;i<3;i++){
+     const rect=this.windows[i].getBoundingClientRect(),w=rect.width,h=rect.height;if(w<10||h<10)continue;
+     const x=rect.left-bb.left,y=rect.top-bb.top,p=players[i],ind=p.currentIsland??0,pal=PALETTES[ind];
+     ctx.save();ctx.beginPath();ctx.rect(x*ratio,y*ratio,w*ratio,h*ratio);ctx.clip();ctx.translate(x*ratio,y*ratio);ctx.scale(ratio,ratio);
+     this.drawBackdrop(ctx,w,h,ind,now);
+     // 無 WebGL 的降級方案仍用坐在車內的透視構圖，而非上一版第三人稱側視圖。
+     const prog=p.phase==='travel'||p.phase==='success'?(p.animProgress||0):0;
+     const sway=Math.sin((prog*9+ind)*1.3)*w*.11, horizonY=h*.52;
+     const sx=depth=>w*.5+sway*(1-depth);
+     const sy=depth=>horizonY+Math.pow(1-depth,1.38)*h*.48;
+     for(let j=0;j<9;j++){
+       const depth=(j+.3)/10,center=sx(depth),Y=sy(depth);
+       ctx.fillStyle=j%2?pal.soil:pal.grass;
+       const bw=(1-depth)*w*.10;
+       ctx.beginPath();ctx.moveTo(center-bw*3,Y+22);ctx.lineTo(center-bw*.9,Y);ctx.lineTo(center-bw*.7,Y-7);ctx.lineTo(center-bw*2.2,Y-16);ctx.closePath();ctx.fill();
+       ctx.beginPath();ctx.moveTo(center+bw*3,Y+22);ctx.lineTo(center+bw*.9,Y);ctx.lineTo(center+bw*.7,Y-7);ctx.lineTo(center+bw*2.2,Y-16);ctx.closePath();ctx.fill();
+     }
+     for(let side of [-1,1]){
+       ctx.beginPath();for(let j=0;j<=36;j++){
+          const d=j/36,spread=7+(1-d)*w*.48,X=sx(d)+side*spread,Y=sy(d);
+          if(!j)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);
+       }
+       ctx.strokeStyle=side===1?'#c9f5ee':'#f2efce';ctx.lineWidth=5;ctx.stroke();
+     }
+     for(let j=0;j<22;j++){
+       const d=j/23,spread=8+(1-d)*w*.48,Y=sy(d),X=sx(d);
+       ctx.strokeStyle='#a98560';ctx.lineWidth=Math.max(1,5*(1-d));ctx.beginPath();ctx.moveTo(X-spread*1.1,Y);ctx.lineTo(X+spread*1.1,Y);ctx.stroke();
+     }
+     if(p.cameraMode==='inside'){
+       // 第一人稱：車頭、護欄留在視野下方。
+       ctx.fillStyle=['#329fb9','#d3934c','#64bd89'][i];ctx.beginPath();ctx.moveTo(w*.2,h);ctx.lineTo(w*.34,h*.80);ctx.lineTo(w*.66,h*.80);ctx.lineTo(w*.80,h);ctx.closePath();ctx.fill();
+       ctx.strokeStyle='#e2f4ee';ctx.lineWidth=8;for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(w*.5+side*w*.43,h);ctx.lineTo(w*.5+side*w*.22,h*.79);ctx.stroke();}
+     }else{
+       // 第三人稱相容構圖：從後方能看到車廂以及坐在其中的主角。
+       const cx=w*.5, cy=h*.79;
+       ctx.fillStyle='#1c394b';ctx.beginPath();ctx.ellipse(cx,cy+15,w*.18,18,0,0,Math.PI*2);ctx.fill();
+       ctx.fillStyle=['#329fb9','#d3934c','#64bd89'][i];ctx.fillRect(cx-w*.16,cy-9,w*.32,38);
+       ctx.fillStyle='#244e64';ctx.fillRect(cx-w*.16,cy-12,w*.32,9);
+       ctx.fillStyle='#f1d9bd';ctx.fillRect(cx-9,cy-32,18,25);
+       ctx.beginPath();ctx.arc(cx,cy-40,17,0,Math.PI*2);ctx.fill();
+       ctx.fillStyle='#573d30';ctx.beginPath();ctx.arc(cx,cy-46,17,Math.PI,Math.PI*2);ctx.fill();
+       ctx.fillStyle='#e4a66b';ctx.fillRect(cx-20,cy-57,40,6);
+       ctx.fillStyle='#132e3d';for(const dx of [-w*.12,w*.12]){ctx.beginPath();ctx.arc(cx+dx,cy+29,9,0,Math.PI*2);ctx.fill();}
+     }
+     ctx.restore();
+   }
  }
 }

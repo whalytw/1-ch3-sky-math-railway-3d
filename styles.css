@@ -14,3 +14,42 @@ html,body{color:#eef7ff}
 .world-window{background:transparent!important}
 /* WebGL 透明區的天空背景；Canvas2D 模式會自行繪製漸層天空。 */
 #worldCanvas{background:linear-gradient(180deg,#234e6b 0%,#4b899e 58%,#87bbc2 100%)}
+
+/* V0.2 車內跟隨鏡頭：行駛時讓 3D 畫面成為每個遊戲區的主體。 */
+.lane[data-phase="travel"] .world-window,
+.lane[data-phase="success"] .world-window {height:auto;min-height:390px;flex:1 1 auto}
+.lane[data-phase="travel"] .lane-main,
+.lane[data-phase="success"] .lane-main {flex:0 0 auto;min-height:87px;padding:10px 13px;background:#0c2639}
+.lane[data-phase="travel"] .travel-screen,
+.lane[data-phase="success"] .travel-screen{gap:4px}
+.lane[data-phase="travel"] .travel-title,
+.lane[data-phase="success"] .travel-title{font-size:13px}
+.lane[data-phase="travel"] .panel-sub,
+.lane[data-phase="success"] .panel-sub{font-size:10px}
+.lane[data-phase="travel"] .progress-dots{margin:3px auto}
+.lane[data-phase="question"] .world-window{height:clamp(260px,38vh,445px)}
+.pov-indicator{position:absolute;z-index:3;left:12px;top:45px;color:#d7f4fa;font-size:10px;text-shadow:0 2px 4px #001b2f;background:#092a3a9f;padding:4px 8px;border-radius:8px}
+.cockpit-hud{position:absolute;z-index:2;inset:0;pointer-events:none;overflow:hidden}
+.cockpit-grip{position:absolute;bottom:-12%;width:19%;height:47%;border:solid 12px rgba(10,39,55,.82);border-bottom:0;filter:drop-shadow(0 2px 3px #0008);transform-origin:bottom}
+.cockpit-left{left:1%;border-radius:100% 0 0 0;transform:rotate(-22deg);border-right:0}
+.cockpit-right{right:1%;border-radius:0 100% 0 0;transform:rotate(22deg);border-left:0}
+.cockpit-hood{position:absolute;bottom:-11%;left:28%;right:28%;height:20%;border-radius:48% 48% 5px 5px;background:linear-gradient(#a9bfc9,#234d62 44%,#123147);border:5px solid #15364a;box-shadow:0 -8px 35px #f3e5ca44,0 2px 7px #000}
+.cockpit-speed{position:absolute;bottom:2%;left:50%;transform:translateX(-50%);background:#123145d9;padding:3px 9px;border-radius:9px;border:1px solid #b5d8de55;color:#e4f5f2;font-size:10px;letter-spacing:.17em;white-space:nowrap}
+.lane[data-phase="idle"] .cockpit-hud,.lane[data-phase="complete"] .cockpit-hud{opacity:.8}
+.skip-ride{position:absolute;z-index:5;bottom:44px;right:11px;padding:6px 10px;background:#062839c9;border:1px solid #c1e7e777;border-radius:9px;color:#e1f8ff;font-size:11px;font-weight:700;pointer-events:auto;display:none}
+.lane[data-phase="travel"] .skip-ride,.lane[data-phase="success"] .skip-ride{display:block}
+.world-window .world-bottom{bottom:53px}
+.world-window .world-vignette{box-shadow:inset 0 0 21px 6px rgba(5,20,32,.16)}
+@media(max-height:780px){.lane[data-phase="travel"] .world-window,.lane[data-phase="success"] .world-window{min-height:270px}.lane[data-phase="question"] .world-window{height:245px}}
+@media(max-width:730px){.lane[data-phase="travel"] .world-window,.lane[data-phase="success"] .world-window{height:440px;flex:auto;min-height:310px}.lane[data-phase="travel"] .lane-main,.lane[data-phase="success"] .lane-main{min-height:86px}}
+
+/* 車內第一人稱與主角第三人稱追隨鏡頭皆可在各區單獨切換。 */
+.lane[data-camera="chase"] .cockpit-hud{display:none}
+.lane[data-camera="inside"] .cockpit-hud{display:block}
+.camera-switch{position:absolute;z-index:5;left:12px;top:71px;background:#062839c7;color:#e2f8ff;border:1px solid #9adbe181;border-radius:9px;padding:5px 8px;font-size:10px;font-weight:700;pointer-events:auto}
+.camera-switch:active{transform:scale(.98)}
+
+.lane[data-phase="question"] .world-window{height:clamp(290px,47vh,520px)}
+.lane[data-phase="question"] .lane-main{overflow-y:auto;overscroll-behavior:contain}
+.lane[data-phase="explain"] .world-window{height:clamp(210px,27vh,330px)}
+@media(max-height:780px){.lane[data-phase="question"] .world-window{height:250px}}

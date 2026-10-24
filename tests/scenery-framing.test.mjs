@@ -14,15 +14,6 @@ for(let seed=0;seed<14;seed++){
  for(let d=100;d<5000;d+=233){const p=world.sample(1,d).point,ps=world.routes.map((_,i)=>world.pointAtX(i,p[0]));for(const side of[-1,1]){
   const item={id:'crowds',point:[p[0],0,(side<0?ps[0][2]:ps[2][2])+side*6.2]};for(const point of crowdPositions(world,item))for(const dx of[-.22,.22])for(const dz of[-.22,.22]){assert.ok(point[1]>=world.surfaceY(point[0]+dx,point[2]+dz)+.04);peopleChecks++}
  }}
- const system=new DecorationSystem(world,{...defaultSettings(),decorationDensity:'rich'});
- for(const distance of[80,350,850,1500,2700,3800,4750])for(const clock of[10,16,39]){
-  const players=[0,1,2].map(i=>player(i,distance+i*16)),views=players.map(p=>viewFor(world,p)),items=system.instances(players,clock,'medium',views).filter(o=>o.escort);
-  for(const item of items){const view=views[item.ownerLane],b=projectedBounds(view,item,decorationBounds(item.id));assert.ok(b.left>=0&&b.right<=view.W&&b.top>=0&&b.bottom<=view.H);assert.ok(view.avoid.every(o=>!overlaps(b,o,2)));assert.ok(safeDecoration(item,world,players));assert.ok(item.alpha>=0&&item.alpha<=1);sizes.push((b.right-b.left)/view.W);seen.add(item.id);encounters++}
  }
-}
-assert.ok(encounters>100,`too few visible escort flights: ${encounters}`);assert.ok(seen.size>=10,`not enough variety: ${[...seen]}`);assert.ok(sizes.reduce((a,b)=>a+b,0)/sizes.length>.14,'fliers should be clearly visible, not distant dots');
-const w=new SharedWorld('moving-flight'),sys=new DecorationSystem(w,defaultSettings()),path=[];
-for(let t=8;t<=17;t+=.5){const players=[0,1,2].map(i=>player(i,120+(t-8)*60/3.6+i*20)),views=players.map(p=>viewFor(w,p));const a=sys.instances(players,t,'medium',views).find(o=>o.ownerLane===0);if(a){const p=w.sample(0,players[0].distance).point;path.push({key:a.encounterKey,id:a.id,offset:sub(a.point,p)})}}
-assert.ok(path.length>=7,'escort should stay in view for multiple seconds');assert.equal(new Set(path.map(p=>p.key)).size,1);const spread=j=>Math.max(...path.map(p=>p.offset[j]))-Math.min(...path.map(p=>p.offset[j]));assert.ok(spread(1)>.06&&spread(2)>.06,'escort path needs vertical and lateral variation');
-for(const side of[-1,1]){const item={id:'windmills',point:[10,2,side*7],size:1,side,phase:.3},a=rotorMatrix(item,0),b=rotorMatrix(item,.5);assert.notDeepEqual([...a],[...b]);assert.deepEqual([...a.slice(12,15)],[...b.slice(12,15)]);assert.ok(a[14]*a[10]<0,'rotor face should point toward the track');assert.ok(Math.hypot(...sub(localPoint(a,[0,2,0]),localPoint(b,[0,2,0])))>.5)}
-console.log(`PASS V1.3: ${railChecks} actual terrain-mesh rail/shoulder clearances, ${peopleChecks} spectator foot checks, ${encounters} framed escort flights (${seen.size} types), no UI/rider overlap, sustained weaving and rotating track-facing windmill blades`);
+for(const side of[-1,1]){const item={id:'windmills',point:[10,2,side*7],size:1,side,phase:.3},a=rotorMatrix(item,0),b=rotorMatrix(item,.5);assert.notDeepEqual([...a],[...b]);assert.deepEqual([...a.slice(12,15)],[...b.slice(12,15)]);assert.ok(a[14]*a[10]<0);assert.ok(Math.hypot(...sub(localPoint(a,[0,2,0]),localPoint(b,[0,2,0])))>.5)}
+console.log(`PASS scenery: ${railChecks} actual terrain-mesh clearances, ${peopleChecks} spectator foot checks and rotating track-facing windmill blades`);

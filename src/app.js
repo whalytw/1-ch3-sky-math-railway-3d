@@ -1,11 +1,13 @@
-import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.3.0';
-import {SharedWorld} from './world.js?v=1.3.0';
-import {Race,defaultSettings,normalizeSettings,formatRaceTime} from './race.js?v=1.3.0';
-import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.3.0';
-import {SpeedEffects} from './effects.js?v=1.3.0';
-import {bindPress} from './touch.js?v=1.3.0';
-import {DECORATIONS} from './decorations.js?v=1.3.0';
-import {BACKGROUNDS} from './background.js?v=1.3.0';
+import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.4.0';
+import {SharedWorld} from './world.js?v=1.4.0';
+import {Race,defaultSettings,normalizeSettings,formatRaceTime} from './race.js?v=1.4.0';
+import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.4.0';
+import {SpeedEffects} from './effects.js?v=1.4.0';
+import {bindPress} from './touch.js?v=1.4.0';
+import {DECORATIONS} from './decorations.js?v=1.4.0';
+import {BACKGROUNDS} from './background.js?v=1.4.0';
+import {loadArtwork} from './artwork.js?v=1.4.0';
+let artworkReady=false;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
@@ -84,6 +86,7 @@ function prepareMap(){
  $('#pauseBtn').disabled=true;updateHUD();renderer?.frame(race.players,performance.now(),true,0);effects?.frame(race.players,0);updatePauseUI();
 }
 function startRace(){
+ if(!artworkReady){toast('角色美術正在載入，請稍候');return}
  const seats=[0,1,2].map(i=>Number($('#seat-'+i).value));if(seats.some(s=>!Number.isInteger(s)||s<1||s>settings.seatMax)){toast(`請選擇 1～${settings.seatMax} 的有效座號`);return}if(new Set(seats).size<3){toast('三位學生請使用不同的座號');return}if(!settings.enabled.some(Boolean)){toast('請在統一設定啟用至少一類題型');return}
  audio.init();renderer?.setSeats(seats);race=new Race(settings,world.seed,seats);savedRace=false;manualPaused=false;lastTime=performance.now();race.start();$('#lobby').classList.add('hidden');$('#pauseBtn').disabled=false;for(let i=0;i<3;i++)$('#message-'+i).textContent='';processEvents();updateHUD();
 }
@@ -108,7 +111,7 @@ function tick(now){advanceTo(now);if(goUntil&&now>goUntil){$('#countdown').class
  if(contextLost){switchFallback();contextLost=false}
  try{const clock=race.status==='lobby'?now/1000:race.elapsed;renderer?.frame(race.players,now,false,clock);effects?.frame(race.players,clock)}catch(error){console.error(error);manualPaused=true;switchFallback();toast('已切換到相容畫面；按繼續可接著遊玩。')}
  for(const p of race.players){const e=$('#exclaim-'+p.lane),point=renderer?.projections[p.lane];e.classList.toggle('hidden',p.exclaim<=0||!point?.visible);if(p.exclaim>0&&point){e.style.left=point.x+'px';e.style.top=point.y+'px'}}
- if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.3`;lastStatus=now}
+ if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.4`;lastStatus=now}
  requestAnimationFrame(tick);
 }
 function initRenderer(fallback=false){const canvas=$('#worldCanvas');try{renderer=fallback?new CanvasFallbackRenderer(canvas,$('#gameBoard'),$$('.lane')):new SharedRenderer(canvas,$('#gameBoard'),$$('.lane'));renderer.setQuality(settings.quality);renderer.setSceneSettings(settings);canvas.addEventListener('webglcontextlost',()=>{manualPaused=true;contextLost=true;updatePauseUI()});return true}catch(e){console.error(e);if(!fallback){const fresh=canvas.cloneNode(false);canvas.replaceWith(fresh);return initRenderer(true)}toast('此瀏覽器無法建立遊戲畫面，請使用已開啟硬體加速的 Chrome 或 Edge。');return false}}
@@ -179,6 +182,6 @@ function init(){
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&['countdown','racing','coasting'].includes(race?.status)){manualPaused=true;updatePauseUI()}lastTime=performance.now()});
  document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea,button')||$$('dialog[open]').length||isPaused())return;const p=race.players[0];if(p.phase!=='question')return;if(/^[0-9.]$/.test(e.key)){e.preventDefault();keyInput(p,e.key)}else if(e.key==='-'){e.preventDefault();keyInput(p,'±')}else if(e.key==='Backspace'){e.preventDefault();keyInput(p,'⌫')}else if(e.key==='Enter'){e.preventDefault();submit(p)}else if(e.key==='Tab'){e.preventDefault();keyInput(p,'→')}});
  for(const select of $$('.seat-row select'))select.addEventListener('change',()=>{const seats=[0,1,2].map(i=>Number($('#seat-'+i).value));renderer?.setSeats(seats);if(race?.status==='lobby'){race.players.forEach((p,i)=>p.seat=seats[i]);updateHUD()}});
- $('#soundBtn').textContent=settings.sound?'♫ 音效開':'♫ 音效關';effects=new SpeedEffects($('#effectsCanvas'),$('#gameBoard'),$$('.lane'));initRenderer();prepareMap();updateDiagnostics(stats);lastTime=performance.now();requestAnimationFrame(tick);
+ $('#soundBtn').textContent=settings.sound?'♫ 音效開':'♫ 音效關';effects=new SpeedEffects($('#effectsCanvas'),$('#gameBoard'),$$('.lane'));initRenderer();prepareMap();const startButton=$('[data-action=start]');startButton.disabled=true;startButton.textContent='角色美術載入中…';Promise.all([loadArtwork(),renderer?.artReady]).then(()=>{artworkReady=true;startButton.disabled=false;startButton.textContent='▶ 三人同時出發'}).catch(error=>{console.error(error);startButton.textContent='角色載入失敗，請重新整理';toast('角色素材未完整載入，請確認整個 assets 資料夾已上傳，再重新整理。')});updateDiagnostics(stats);lastTime=performance.now();requestAnimationFrame(tick);
 }
 init();

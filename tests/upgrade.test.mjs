@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {generateQuestion} from '../src/math.js';
 import {SharedWorld,WORLD_END} from '../src/world.js';
 import {DECORATIONS,DENSITY_BUDGET,DECORATION_RADII,DecorationSystem,makeDecoration,defaultDecorations,safeFromRiders,safeDecoration} from '../src/decorations.js';
+import {ESCORT_TYPES} from '../src/encounters.js';
 import {defaultSettings,normalizeSettings,formatRaceTime} from '../src/race.js';
 import {makeCart,makeCharacter} from '../src/scenery.js';
 import {BACKGROUNDS,makePanorama} from '../src/background.js';
@@ -39,7 +40,7 @@ for(let seed=0;seed<8;seed++){
  sys.setSettings({...settings,decorations:Object.fromEntries(DECORATIONS.map(d=>[d.id,false]))});assert.deepEqual(sys.instances(players,20),[]);
  sys.setSettings({...settings,decorationDensity:'sparse',decorations:{...defaultDecorations(),dragons:false}});const items=sys.instances(players,20);assert.ok(items.length<=7);assert.ok(items.every(d=>d.id!=='dragons'));
 }
-assert.deepEqual([...seen].sort(),DECORATIONS.map(d=>d.id).sort());
+assert.deepEqual([...seen].sort(),DECORATIONS.filter(d=>!ESCORT_TYPES.includes(d.id)).map(d=>d.id).sort());
 assert.notDeepEqual(makeCart('#69dfed',12),makeCart('#69dfed',21));assert.ok(makeCharacter('#69dfed',true).every(Number.isFinite));
 // Exercise every procedural panorama with a minimal canvas API, without external assets.
 const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});for(const b of BACKGROUNDS){const out=makePanorama('backdrop',{id:'snow',sky:'#bcddee',fog:'#dae8ee'},b.id,()=>({getContext:()=>ctx}));assert.ok(out);assert.equal(out.canvas.width,1536);assert.notEqual(out.style,'auto')}

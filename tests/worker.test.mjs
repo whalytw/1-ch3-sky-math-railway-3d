@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {Worker} from 'node:worker_threads';
+import {SharedWorld} from '../src/world.js';
+import {makeChunk} from '../src/scenery.js';
+const source=new URL('../src/scene-worker.js',import.meta.url).href;
+const bootstrap=`import {parentPort} from 'node:worker_threads';globalThis.self=globalThis;self.postMessage=(m,t)=>parentPort.postMessage(m,t);await import(${JSON.stringify(source)});parentPort.on('message',data=>self.onmessage({data}));parentPort.postMessage({type:'booted'});`;
+const worker=new Worker(new URL('data:text/javascript,'+encodeURIComponent(bootstrap)),{type:'module'}),world=new SharedWorld('worker-world'),seen=new Set();
+await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('worker protocol timed out')),10000);worker.on('error',reject);worker.on('message',message=>{try{if(message.type==='booted')worker.postMessage({type:'init',seed:world.seed});else if(message.type==='ready'){worker.postMessage({type:'chunks',seed:world.seed,indices:[4,5]});worker.postMessage({type:'chunks',seed:world.seed,indices:[6]})}else if(message.type==='chunk'){assert.equal(message.seed,world.seed);assert.ok(message.data instanceof Float32Array);assert.deepEqual(message.data,makeChunk(world,message.index));seen.add(message.index);if(seen.size===3){clearTimeout(timer);resolve()}}}catch(error){clearTimeout(timer);reject(error)}})});
+await worker.terminate();assert.deepEqual([...seen].sort(),[4,5,6]);
+console.log('PASS terrain worker: off-thread generation, overlapping request queues, transferred Float32Array and exact shared-world geometry');

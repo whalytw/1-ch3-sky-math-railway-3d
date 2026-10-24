@@ -17,7 +17,7 @@ export class Geometry{
 
  sphere(x,y,z,r,c,sections=8,rings=5){for(let i=0;i<rings;i++){let lat1=-Math.PI/2+i*Math.PI/rings,lat2=-Math.PI/2+(i+1)*Math.PI/rings;for(let j=0;j<sections;j++){let lon1=j*2*Math.PI/sections,lon2=(j+1)*2*Math.PI/sections;const p=(lat,lon)=>[x+r*Math.cos(lat)*Math.cos(lon),y+r*Math.sin(lat),z+r*Math.cos(lat)*Math.sin(lon)];this.quad(p(lat1,lon1),p(lat1,lon2),p(lat2,lon2),p(lat2,lon1),c)}}}
  cone(x,topY,bottomY,z,radius,c,sides=7){for(let i=0;i<sides;i++){const t=i*2*Math.PI/sides,u=(i+1)*2*Math.PI/sides;const a=[x+Math.cos(t)*radius,topY,z+Math.sin(t)*radius],b=[x+Math.cos(u)*radius,topY,z+Math.sin(u)*radius];this.triangle([x,bottomY,z],b,a,c);this.triangle([x,topY,z],a,b,c)}}
- pyramid(x,y,z,w,h,c){this.cone(x,y+h/2,y-h/2,z,w/2,c,4)}
+ pyramid(x,y,z,w,h,c){this.cone(x,y-h/2,y+h/2,z,w/2,c,4)}
  clear(){this.v=[]}
  array(){return new Float32Array(this.v)}
 }

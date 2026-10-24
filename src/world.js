@@ -1,5 +1,7 @@
-import {random, clamp} from './math.js?v=1.0.0';
-export const METRES_PER_UNIT=10, ROUTE_METRES=5000, WORLD_END=470;
+import {random, clamp} from './math.js?v=1.1.0';
+export const METRES_PER_UNIT=1.6, ROUTE_METRES=5000, WORLD_END=4700/METRES_PER_UNIT;
+export const RUNOUT_METRES=600, WORLD_DRAW_END=WORLD_END+RUNOUT_METRES/METRES_PER_UNIT;
+const LAND_SCALE=10/METRES_PER_UNIT;
 export const THEMES=[
  {id:'forest',name:'森林',sky:'#8bc6d8',fog:'#a5c9bb',ground:'#6b9f62',tree:'#296947',light:'#8bba69'},
  {id:'hills',name:'丘陵',sky:'#9ecbdc',fog:'#b9d2b3',ground:'#96b96a',tree:'#527d4a',light:'#c5ce80'},
@@ -28,8 +30,8 @@ export class SharedWorld{
   this.routes=Array.from({length:3},(_,lane)=>this.makeRoute(lane,r));
  }
  envelope(t){return smooth(t/.1)*smooth((1-t)/.1)}
- centerZ(t){return this.envelope(t)*(12*Math.sin(2*Math.PI*this.turns*t+this.phases[0])+5*Math.sin(6*Math.PI*t+this.phases[1]))}
- baseY(t){return this.envelope(t)*(2.2+2*Math.sin(4*Math.PI*t+this.phases[2]))}
+ centerZ(t){return this.envelope(t)*LAND_SCALE*(12*Math.sin(2*Math.PI*this.turns*t+this.phases[0])+5*Math.sin(6*Math.PI*t+this.phases[1]))}
+ baseY(t){return this.envelope(t)*LAND_SCALE*(2.2+2*Math.sin(4*Math.PI*t+this.phases[2]))}
  terrainY(x,z){
   const t=clamp(x/WORLD_END,0,1),base=this.baseY(t);let h=base;
   if(this.routes){const ps=this.routes.map((_,i)=>this.pointAtX(i,x));
@@ -40,7 +42,7 @@ export class SharedWorld{
   return h-3.4+.16*Math.sin(x*.19+z*.1);
  }
  makeRoute(lane,r){
-  const side=lane-1,fs=[1.4+side*.055,1.55-side*.05],phases=[this.phases[4]+side*.12,this.phases[5]-side*.12],turn=r()*1.2+.8;
+  const side=lane-1,fs=[1.4+side*.01,1.55-side*.01],phases=[this.phases[4]+side*.018,this.phases[5]-side*.018],turn=r()*1.2+.8;
   const raw=(t,amps)=>{
    const half=t<.5?0:1,u=half?2*t-1:2*t;
    const hill=smooth(u/.12)*smooth((1-u)/.12)*Math.sin(2*Math.PI*fs[half]*u+phases[half])**2;
@@ -48,22 +50,23 @@ export class SharedWorld{
    return [WORLD_END*t,this.baseY(t)+amps[half]*hill,
     this.centerZ(t)+side*separation+env*1.05*Math.sin(2*Math.PI*turn*t+phases[0])];
   };
-  const count=1000,length=(amp,half)=>{const amps=[amp,amp];let prev=raw(half/2,amps),len=0;for(let j=1;j<=count/2;j++){const p=raw(half/2+j/count,amps);len+=Math.hypot(...sub(p,prev));prev=p}return len};
+  const count=1600,length=(amp,half)=>{const amps=[amp,amp];let prev=raw(half/2,amps),len=0;for(let j=1;j<=count/2;j++){const p=raw(half/2+j/count,amps);len+=Math.hypot(...sub(p,prev));prev=p}return len};
   // Each half is exactly 2.5 km, so every player enters the shared second biome at 50%.
-  const amplitudes=[0,1].map(half=>{let lo=0,hi=60;for(let j=0;j<42;j++){const mid=(lo+hi)/2;if(length(mid,half)<ROUTE_METRES/METRES_PER_UNIT/2)lo=mid;else hi=mid}return (lo+hi)/2});
+  const amplitudes=[0,1].map(half=>{let lo=0,hi=WORLD_END*.07;for(let j=0;j<38;j++){const mid=(lo+hi)/2;if(length(mid,half)<ROUTE_METRES/METRES_PER_UNIT/2)lo=mid;else hi=mid}return (lo+hi)/2});
   const points=[],distances=[0];
   for(let j=0;j<=count;j++){const p=raw(j/count,amplitudes);points.push(p);if(j)distances.push(distances.at(-1)+Math.hypot(...sub(p,points[j-1]))*METRES_PER_UNIT)}
-  return {points,distances,length:distances.at(-1),amplitudes};
+  return {points,distances,length:distances.at(-1),amplitudes,evaluate:t=>raw(clamp(t,0,1),amplitudes)};
  }
  sample(lane,metres){
-  const route=this.routes[lane],ds=route.distances,n=ds.length-1,d=clamp(metres,0,ROUTE_METRES);let lo=0,hi=n;
-  while(lo+1<hi){const m=(lo+hi)>>1;if(ds[m]<=d)lo=m;else hi=m}
-  const f=clamp((d-ds[lo])/(ds[hi]-ds[lo]),0,1),point=vlerp(route.points[lo],route.points[hi],f);
-  // Centred tangents keep the chase camera steady across polyline samples.
-  const a=route.points[Math.max(0,lo-1)],b=route.points[Math.min(n,hi+1)],forward=normalize(sub(b,a));
+  if(metres<=0||metres>=ROUTE_METRES){const x=metres<=0?metres/METRES_PER_UNIT:WORLD_END+(metres-ROUTE_METRES)/METRES_PER_UNIT;return {point:[x,0,(lane-1)*3.2],forward:[1,0,0],right:[0,0,1]}}
+  const route=this.routes[lane],ds=route.distances,n=ds.length-1;let lo=0,hi=n;
+  while(lo+1<hi){const m=(lo+hi)>>1;if(ds[m]<=metres)lo=m;else hi=m}
+  const f=clamp((metres-ds[lo])/(ds[hi]-ds[lo]),0,1),t=(lo+f)/n,point=route.evaluate(t);
+  // Evaluate a continuous tangent, rather than holding one tangent for each five-metre segment.
+  const e=1e-5,forward=normalize(sub(route.evaluate(Math.min(1,t+e)),route.evaluate(Math.max(0,t-e))));
   return {point,forward,right:normalize(cross(forward,[0,1,0]))};
  }
- pointAtX(lane,x){const points=this.routes[lane].points,t=clamp(x/WORLD_END,0,1)*1000,i=Math.min(999,Math.floor(t));return vlerp(points[i],points[i+1],t-i)}
+ pointAtX(lane,x){if(x<=0||x>=WORLD_END)return [x,0,(lane-1)*3.2];return this.routes[lane].evaluate(x/WORLD_END)}
  themeAtX(x){return this.themes[x<WORLD_END*.5?0:1]}
  themeAt(lane,metres){return this.themeAtX(this.sample(lane,metres).point[0])}
  blendAt(x){return smooth((x-WORLD_END*.5+9)/18)}

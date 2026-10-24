@@ -1,17 +1,18 @@
-import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.0.0';
-import {SharedWorld} from './world.js?v=1.0.0';
-import {Race,defaultSettings,normalizeSettings} from './race.js?v=1.0.0';
-import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.0.0';
-import {bindPress} from './touch.js?v=1.0.0';
+import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.1.0';
+import {SharedWorld} from './world.js?v=1.1.0';
+import {Race,defaultSettings,normalizeSettings} from './race.js?v=1.1.0';
+import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.1.0';
+import {SpeedEffects} from './effects.js?v=1.1.0';
+import {bindPress} from './touch.js?v=1.1.0';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 const SETTINGS_KEY='sky-railway-shared-v1',RECORDS_KEY='sky-railway-race-records-v1';
-let settings=normalizeSettings(store.get(SETTINGS_KEY,defaultSettings())),records=store.get(RECORDS_KEY,[]),world,race,renderer,manualPaused=false,lastTime=0,lastHUD=0,lastStatus=0,toastTimer,goUntil=0,diagnosticMode=false,stats={counts:[0,0,0],active:0,max:0},savedRace=false,contextLost=false;
+let settings=normalizeSettings(store.get(SETTINGS_KEY,defaultSettings())),records=store.get(RECORDS_KEY,[]),world,race,renderer,effects,manualPaused=false,lastTime=0,lastHUD=0,lastStatus=0,toastTimer,goUntil=0,diagnosticMode=false,stats={counts:[0,0,0],active:0,max:0},savedRace=false,contextLost=false;
 const lanes=['藍隊','橘隊','綠隊'];
 const timeText=t=>`${Math.floor(t/60).toString().padStart(2,'0')}:${Math.floor(t%60).toString().padStart(2,'0')}.${Math.floor((t%1)*10)}`;
 const freshSeed=()=>{try{return `${Date.now().toString(36)}-${crypto.getRandomValues(new Uint32Array(2)).join('-')}`}catch{return `${Date.now()}-${Math.random()}`}};
-const audio={ctx:null,master:null,init(){try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;this.ctx??=new A();if(!this.master){this.master=this.ctx.createGain();this.master.connect(this.ctx.destination)}this.master.gain.value=settings.sound?.55:0;if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{})}catch{}},tone(freq,at=0,len=.15,type='sine',volume=.18){const c=this.ctx;if(!c||!settings.sound)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+at;o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(volume,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+len);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+len+.03);o.onended=()=>{o.disconnect();g.disconnect()}},play(type){if(!settings.sound)return;const seq={count:[[440,0,.12]],go:[[523,0,.2],[659,.06,.2],[784,.12,.45]],correct:[[659,0,.11],[880,.1,.15],[1047,.2,.22]],wrong:[[233,0,.18],[174,.16,.23]],hint:[[587,0,.17],[740,.1,.2]],midpoint:[[784,0,.2]],finish:[[523,0,.18],[659,.12,.18],[784,.24,.18],[1047,.36,.45]],overtake:[[523,0,.2],[659,.08,.2],[784,.16,.2],[1047,.27,.5]]}[type]||[];for(const n of seq)this.tone(...n,type==='wrong'?'triangle':'sine');if(type==='overtake'&&this.ctx){const c=this.ctx,n=c.sampleRate*.8,buffer=c.createBuffer(1,n,c.sampleRate),data=buffer.getChannelData(0);for(let j=0;j<n;j++)data[j]=(Math.random()*2-1)*Math.sin(Math.PI*j/n)*(.6+.4*Math.sin(j/110));const src=c.createBufferSource(),filter=c.createBiquadFilter(),g=c.createGain();src.buffer=buffer;filter.type='bandpass';filter.frequency.value=1250;filter.Q.value=.6;g.gain.value=.12;src.connect(filter);filter.connect(g);g.connect(this.master);src.start();src.onended=()=>{src.disconnect();filter.disconnect();g.disconnect()}}}};
+const audio={ctx:null,master:null,init(){try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;this.ctx??=new A();if(!this.master){this.master=this.ctx.createGain();this.master.connect(this.ctx.destination)}this.master.gain.value=settings.sound?.55:0;if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{})}catch{}},tone(freq,at=0,len=.15,type='sine',volume=.18){const c=this.ctx;if(!c||!settings.sound)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+at;o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(volume,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+len);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+len+.03);o.onended=()=>{o.disconnect();g.disconnect()}},play(type){if(!settings.sound)return;const seq={count:[[440,0,.12]],go:[[523,0,.2],[659,.06,.2],[784,.12,.45]],correct:[[659,0,.11],[880,.1,.15],[1047,.2,.22]],wrong:[[233,0,.18],[174,.16,.23]],hint:[[587,0,.17],[740,.1,.2]],midpoint:[[784,0,.2]],finish:[[523,0,.18],[659,.12,.18],[784,.24,.18],[1047,.36,.45]],overtake:[[523,0,.2],[659,.08,.2],[784,.16,.2],[1047,.27,.5]]}[type]||[];for(const n of seq)this.tone(...n,type==='wrong'?'triangle':'sine');if(['overtake','finish','go'].includes(type)&&this.ctx){const c=this.ctx,n=c.sampleRate*.8,buffer=c.createBuffer(1,n,c.sampleRate),data=buffer.getChannelData(0);for(let j=0;j<n;j++)data[j]=(Math.random()*2-1)*Math.sin(Math.PI*j/n)*(.6+.4*Math.sin(j/110));const src=c.createBufferSource(),filter=c.createBiquadFilter(),g=c.createGain();src.buffer=buffer;filter.type='bandpass';filter.frequency.value=1250;filter.Q.value=.6;g.gain.value=.12;src.connect(filter);filter.connect(g);g.connect(this.master);src.start();src.onended=()=>{src.disconnect();filter.disconnect();g.disconnect()}}}};
 function toast(message){$('#toast').textContent=message;$('#toast').classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.add('hidden'),3000)}
 function laneMarkup(i){return `<section class="lane" data-lane="${i}" style="--player:${PLAYER_COLORS[i]}" aria-label="${lanes[i]}遊戲區">
  <div class="hud"><div class="identity"><span class="player-label"><i></i>${lanes[i]} <span id="seatLabel-${i}"></span></span><span class="stopwatch" id="clock-${i}">00:00.0</span><span class="rank">第 <b id="rank-${i}">1</b> 名</span></div>
@@ -19,9 +20,9 @@ function laneMarkup(i){return `<section class="lane" data-lane="${i}" style="--p
  <div class="question hidden" id="question-${i}"></div>
  <div class="feedback hidden" id="feedback-${i}"></div>
  <div class="keypad hidden" id="keypad-${i}" aria-label="${lanes[i]}數字鍵盤"><div class="keypad-label"><span>數字鍵盤</span><span>→ 換欄　✓ 送出</span></div><div class="keys">${['1','2','3','4','5','6','7','8','9','±','0','.','⌫','→','✓'].map(k=>`<button data-action="key" data-key="${k}" aria-label="${k==='⌫'?'刪除一字':k==='→'?'下一欄':k==='✓'?'確認答案':k==='±'?'正負號':k}" class="${k==='→'?'field-next':''}">${k}</button>`).join('')}</div></div>
- <div class="telemetry"><div class="biome-tag" id="biome-${i}"></div><div class="speed"><span id="speed-${i}">0</span><small>km/h</small></div><div class="boost" id="boostBox-${i}">ϟ 加速 <b id="boost-${i}">0.0</b> 秒</div><div class="distance" id="distance-${i}">0.00 / 5.00 km</div></div>
+ <div class="telemetry"><div class="biome-tag" id="biome-${i}"></div><div class="speed"><span id="speed-${i}">0</span><small>km/h</small></div><div class="jet-level" id="level-${i}">引擎待命</div><div class="boost" id="boostBox-${i}">ϟ 加速 <b id="boost-${i}">0.0</b> 秒</div><div class="distance" id="distance-${i}">0.00 / 5.00 km</div></div>
  <div class="lane-message" id="message-${i}"></div><div class="exclaim hidden" id="exclaim-${i}">!!</div>
- <div class="finish-card hidden" id="finish-${i}"></div>
+ <div class="finish-card hidden" id="finish-${i}"></div><section class="player-review hidden" id="ownReview-${i}" aria-label="${lanes[i]}自己的解題紀錄"></section>
  </section>`}
 function fieldsFor(q){if(q.mode==='number')return [{key:'value',label:'答案'}];if(q.mode==='pair')return q.fields;if(q.mode==='sliders')return q.controls;return [{key:'x',label:'調整 x'}]}
 function valueOf(p,key){return p.question.mode==='number'?p.reply:p.reply?.[key]}
@@ -54,10 +55,13 @@ function submit(p){if(p.phase!=='question')return;const q=p.question;
 }
 function showHint(p){if(!race.hint(p.lane))return;if(p.phase==='question'){$('#hint-'+p.lane).textContent=p.question.steps[0];$('#hint-'+p.lane).classList.remove('hidden');$('#hintBtn-'+p.lane).disabled=true;$('#hintBtn-'+p.lane).textContent='✦ 求救卡已用完'}processEvents();updateHUD()}
 function paintFinish(p){const i=p.lane;$('#question-'+i).classList.add('hidden');$('#keypad-'+i).classList.add('hidden');$('#feedback-'+i).classList.add('hidden');const rank=rankOf(p),correct=p.results.filter(r=>r.correct).length;
- $('#finish-'+i).innerHTML=`<div class="trophy">✦</div><h2>第 ${rank} 名抵達！</h2><p>${esc(p.seat)} 號 · ${timeText(p.finishTime)}<br>答對 ${correct} / ${p.results.length} 題 · 完成 5.00 km</p><p class="finish-wait" id="finishWait-${i}"></p><button data-action="review">查看本場解題紀錄</button><button class="primary hidden next-round" data-action="next-round">↻ 下一組三人出發</button>`;$('#finish-'+i).classList.remove('hidden');
+ $('#finish-'+i).innerHTML=`<div class="finish-heading"><b>✦ 第 ${rank} 名抵達！</b><span>${esc(p.seat)} 號 · ${timeText(p.finishTime)}</span></div><p>答對 ${correct} / ${p.results.length} 題 · 5.00 km</p><p class="finish-wait" id="finishWait-${i}"></p><div class="finish-actions"><button data-action="review-player">查看我的解題紀錄</button><button class="primary hidden next-round" data-action="next-round">↻ 下一組</button></div>`;$('#finish-'+i).classList.remove('hidden');
 }
+function paintOwnReview(p){if(p.finishTime===null)return;p.reviewOpen=true;$('#ownReview-'+p.lane).innerHTML=`<header><div><small>${lanes[p.lane]} · ${esc(p.seat)} 號</small><h3>我的解題紀錄</h3></div><button data-action="close-own-review" aria-label="關閉${lanes[p.lane]}解題紀錄">✕ 關閉</button></header><div class="own-review-body"><p class="note">完賽時間 ${timeText(p.finishTime)}。這個面板只顯示你的紀錄；另外兩區繼續比賽。</p>${p.results.map(r=>`<details class="own-question"><summary class="${r.correct?'correct':'wrong'}">${r.correct?'✓':'×'} 第 ${r.number} 題 · ${esc(r.question.title)}</summary><p>${esc(r.question.instruction)}</p><p class="formula">${esc(r.question.formula)}</p><b>正確答案：${esc(correctText(r.question))}</b><ol>${r.question.steps.map(t=>`<li>${esc(t)}</li>`).join('')}</ol><div class="mini-graph">${graphSVG(r.question)}</div></details>`).join('')||'<p>本場沒有已完成題目。</p>'}</div>`;$('#ownReview-'+p.lane).classList.remove('hidden')}
+function closeOwnReview(p){p.reviewOpen=false;$('#ownReview-'+p.lane).classList.add('hidden')}
+
 function rankOf(p){if(p.finishTime!==null)return 1+race.players.filter(o=>o.finishTime!==null&&o.finishTime<p.finishTime-1e-7).length;return 1+race.players.filter(o=>o.distance>p.distance+1e-7).length}
-function processEvents(){for(const ev of race.drainEvents()){
+function processEvents(){const events=race.drainEvents();if(!events.length)return;for(const ev of events){
  if(ev.type==='count'){audio.play('count');$('#countdown strong').textContent=ev.value;$('#countdown span').textContent='準備出發';$('#countdown').classList.remove('hidden')}
  if(ev.type==='go'){audio.play('go');$('#countdown strong').textContent='GO';$('#countdown span').textContent='向 5 公里終點出發';goUntil=performance.now()+900}
  if(ev.type==='question')paintQuestion(race.players[ev.lane]);
@@ -66,15 +70,16 @@ function processEvents(){for(const ev of race.drainEvents()){
  if(ev.type==='midpoint')audio.play('midpoint');
  if(ev.type==='overtake')audio.play('overtake');
  if(ev.type==='finish'){audio.play('finish');paintFinish(race.players[ev.lane])}
- if(ev.type==='complete'){manualPaused=false;saveRace();$$('.next-round').forEach(b=>b.classList.remove('hidden'));$('#pauseBtn').disabled=true;toast('三人都抵達終點了！可以查看紀錄或開始下一組。')}
+ if(ev.type==='all-finished')saveRace();
+ if(ev.type==='complete'){manualPaused=false;saveRace();$$('.next-round').forEach(b=>b.classList.remove('hidden'));$('#pauseBtn').disabled=true;toast('三人都已完賽並停妥，可以開始下一組！')}
  }updatePauseUI()}
 function prepareMap(){
  world=new SharedWorld(freshSeed());race=new Race(settings,world.seed);renderer?.setWorld(world);savedRace=false;manualPaused=false;goUntil=0;
  $('#biomePair').innerHTML=`<span>${esc(world.themes[0].name)}</span><small>2.5 km →</small><span>${esc(world.themes[1].name)}</span>`;
  $('#routeMeta').textContent=`${world.themes.map(t=>t.name).join(' → ')} · 5.00 km`;
  $('#lobbySettings').textContent=`${settings.enabled.filter(Boolean).length} 類題型 · ${settings.timeMode==='fixed'?settings.seconds+' 秒／題':'依題型計時'}`;
- $('#lobby').classList.remove('hidden');$('#countdown').classList.add('hidden');for(let i=0;i<3;i++){for(const name of ['question','feedback','keypad','finish','exclaim'])$('#'+name+'-'+i).classList.add('hidden');$('#message-'+i).textContent='同一張地圖 · 等待一起出發'}
- $('#pauseBtn').disabled=true;updateHUD();renderer?.frame(race.players,performance.now(),true);updatePauseUI();
+ $('#lobby').classList.remove('hidden');$('#countdown').classList.add('hidden');for(let i=0;i<3;i++){for(const name of ['question','feedback','keypad','finish','exclaim','ownReview'])$('#'+name+'-'+i).classList.add('hidden');$('#message-'+i).textContent='同一張地圖 · 等待一起出發'}
+ $('#pauseBtn').disabled=true;updateHUD();renderer?.frame(race.players,performance.now(),true,0);effects?.frame(race.players,0);updatePauseUI();
 }
 function startRace(){
  const seats=[0,1,2].map(i=>Number($('#seat-'+i).value));if(seats.some(s=>!Number.isInteger(s)||s<1||s>50)){toast('請輸入 1～50 的有效座號');return}if(new Set(seats).size<3){toast('三位學生請使用不同的座號');return}if(!settings.enabled.some(Boolean)){toast('請在統一設定啟用至少一類題型');return}
@@ -85,28 +90,28 @@ function updateHUD(){if(!race)return;
   $('#seatLabel-'+i).textContent=`${p.seat} 號`;$('#clock-'+i).textContent=timeText(p.finishTime??race.elapsed);$('#rank-'+i).textContent=rankOf(p);
   $('#fill-'+i).style.width=pct+'%';$('#percent-'+i).textContent=pct.toFixed(1)+'%';$('#percent-'+i).style.transform=pct<8?'translateX(-10%)':pct>92?'translateX(-90%)':'translateX(-50%)';
   for(const o of race.players)$('#dot-'+i+'-'+o.lane).style.left=(o.distance/50)+'%';
-  $('#speed-'+i).textContent=Math.round(p.speed);$('#boost-'+i).textContent=p.boost.toFixed(1);$('#boostBox-'+i).classList.toggle('on',p.boost>0);$('#distance-'+i).textContent=`${(p.distance/1000).toFixed(2)} / 5.00 km`;
+  $('#speed-'+i).textContent=Math.round(p.speed);$('#boost-'+i).textContent=p.boost.toFixed(1);$('#boostBox-'+i).classList.toggle('on',p.boost>0);const badge=$('#level-'+i);badge.textContent=p.finishTime!==null?(p.speed>0?'終點滑行':'已停妥'):p.boostLevel?`JET LEVEL ${p.boostLevel}`:'引擎待命';badge.dataset.level=String(p.boostLevel);$('#distance-'+i).textContent=`${(p.distance/1000).toFixed(2)} / 5.00 km`;
   $('#biome-'+i).textContent=`${world.themeAt(i,p.distance).name} · ${p.distance<2500?'前半程':'後半程'}`;
   const timer=$('#timer-'+i);if(timer&&p.phase==='question'){timer.textContent=Math.ceil(p.remaining)+' 秒';timer.classList.toggle('urgent',p.remaining<=10)}
   if(p.phase==='feedback'&&$('#next-'+i))$('#next-'+i).textContent=Math.ceil(p.wait);
   if(p.phase==='travel'&&race.status==='racing')$('#message-'+i).textContent=`首題將在 ${Math.ceil(p.wait)} 秒後出現`;
-  if(p.finishTime!==null&&$('#finishWait-'+i))$('#finishWait-'+i).textContent=race.status==='complete'?'全員抵達，下一組準備！':`等待另外 ${race.players.filter(o=>o.finishTime===null).length} 位抵達`;
+  if(p.finishTime!==null&&$('#finishWait-'+i)){$('#finishWait-'+i).textContent=p.phase==='coasting'?`微笑揮手中 · ${Math.ceil(15-p.coastElapsed)} 秒後停妥`:race.status==='complete'?'全員停妥，下一組準備！':`已停妥 · 另外 ${race.players.filter(o=>o.finishTime===null).length} 位仍在比賽`;}
  }
 }
 function isPaused(){return manualPaused||$$('dialog[open]').length>0||document.hidden}
-function updatePauseUI(){const running=['racing','countdown'].includes(race?.status);$('#pauseOverlay').classList.toggle('hidden',!manualPaused||!running);$('#pauseBtn').textContent=manualPaused?'▶ 繼續':'Ⅱ 暫停';$('#pauseBtn').disabled=!running}
+function updatePauseUI(){const running=['racing','countdown','coasting'].includes(race?.status);$('#pauseOverlay').classList.toggle('hidden',!manualPaused||!running);$('#pauseBtn').textContent=manualPaused?'▶ 繼續':'Ⅱ 暫停';$('#pauseBtn').disabled=!running}
 function advanceTo(now){if(lastTime&&race&&!isPaused())race.step(Math.max(0,(now-lastTime)/1000));lastTime=now;processEvents()}
 function tick(now){advanceTo(now);if(goUntil&&now>goUntil){$('#countdown').classList.add('hidden');goUntil=0}
  if(now-lastHUD>50){updateHUD();lastHUD=now}
  if(contextLost){switchFallback();contextLost=false}
- try{renderer?.frame(race.players,now)}catch(error){console.error(error);manualPaused=true;switchFallback();toast('已切換到相容畫面；按繼續可接著遊玩。')}
+ try{const clock=race.status==='lobby'?now/1000:race.elapsed;renderer?.frame(race.players,now,false,clock);effects?.frame(race.players,clock)}catch(error){console.error(error);manualPaused=true;switchFallback();toast('已切換到相容畫面；按繼續可接著遊玩。')}
  for(const p of race.players){const e=$('#exclaim-'+p.lane),point=renderer?.projections[p.lane];e.classList.toggle('hidden',p.exclaim<=0||!point?.visible);if(p.exclaim>0&&point){e.style.left=point.x+'px';e.style.top=point.y+'px'}}
- if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.0`;lastStatus=now}
+ if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.1`;lastStatus=now}
  requestAnimationFrame(tick);
 }
 function initRenderer(fallback=false){const canvas=$('#worldCanvas');try{renderer=fallback?new CanvasFallbackRenderer(canvas,$('#gameBoard'),$$('.lane')):new SharedRenderer(canvas,$('#gameBoard'),$$('.lane'));renderer.setQuality(settings.quality);canvas.addEventListener('webglcontextlost',()=>{manualPaused=true;contextLost=true;updatePauseUI()});return true}catch(e){console.error(e);if(!fallback){const fresh=canvas.cloneNode(false);canvas.replaceWith(fresh);return initRenderer(true)}toast('此瀏覽器無法建立遊戲畫面，請使用已開啟硬體加速的 Chrome 或 Edge。');return false}}
 function switchFallback(){try{renderer?.destroy()}catch{}const canvas=$('#worldCanvas'),fresh=canvas.cloneNode(false);canvas.replaceWith(fresh);initRenderer(true);renderer?.setWorld(world);updatePauseUI()}
-function openModal(id){advanceTo(performance.now());if(id==='teacherModal')paintTeacher();if(id==='reviewModal')paintReview();$('#'+id).showModal();updatePauseUI()}
+function openModal(id){advanceTo(performance.now());if(id==='teacherModal')paintTeacher();$('#'+id).showModal();updatePauseUI()}
 function closeModal(id){$('#'+id).close();lastTime=performance.now();updatePauseUI()}
 function paintTeacher(){const n=settings.enabled.filter(Boolean).length;$('#teacherContent').innerHTML=`
  <div class="setting-row"><button data-action="preset" data-count="4">基礎 4 類</button><button data-action="preset" data-count="6">進階 6 類</button><button data-action="preset" data-count="8">全部 8 類</button><label>一鍵統一難度<select id="allStars"><option value="">選擇 1～5 星</option>${[1,2,3,4,5].map(s=>`<option value="${s}">${'★'.repeat(s)} ${s} 星</option>`).join('')}</select></label></div>
@@ -114,14 +119,14 @@ function paintTeacher(){const n=settings.enabled.filter(Boolean).length;$('#teac
  <h3>作答時間與畫質</h3><div class="setting-row"><label>作答計時<select data-config="timeMode"><option value="fixed" ${settings.timeMode==='fixed'?'selected':''}>每題統一秒數</option><option value="topic" ${settings.timeMode==='topic'?'selected':''}>依題型預設 35～100 秒</option></select></label><label>每題<input type="number" data-config="seconds" aria-label="每題秒數" min="10" max="180" step="1" value="${settings.seconds}" style="width:78px" ${settings.timeMode==='topic'?'disabled':''}>秒</label><label>畫質<select data-config="quality"><option value="auto" ${settings.quality==='auto'?'selected':''}>自動（Surface Pro 8 建議）</option><option value="low" ${settings.quality==='low'?'selected':''}>省電／低畫質</option><option value="medium" ${settings.quality==='medium'?'selected':''}>標準</option><option value="high" ${settings.quality==='high'?'selected':''}>高畫質</option></select></label></div>
  <p class="note">三區共用同一套設定。題目依啟用的題型輪替，同一道次的題型一致，數字各自不同；持續出題直到各自抵達 5 公里。每題固定 1 張求救卡，使用立即扣 10 秒。</p>
  <div class="setting-row"><button data-action="diagnostics">${diagnosticMode?'關閉':'開啟'}三人觸控測試</button><button data-action="export">↓ 匯出成績 CSV</button><button data-action="reset-settings">恢復預設</button></div><p class="note">觸控測試會顯示三區接收次數、目前與最多同時觸點。數字鍵按下就生效，可三人同時按、快速連按；長按不連續輸入。</p>
- <div class="teacher-footer"><span class="note" style="border:0;padding:0">比賽規則：5 km · 60–80 km/h · 答完等 5 秒</span><button class="primary" data-action="close" data-modal="teacherModal">✓ 完成設定</button></div>`}
+ <div class="teacher-footer"><span class="note" style="border:0;padding:0">5 km · JET 75／90／100 km/h · 答完等 5 秒</span><button class="primary" data-action="close" data-modal="teacherModal">✓ 完成設定</button></div>`}
 function settingsChanged(e){const b=e.target;
  if(b.id==='allStars'){if(!b.value)return;settings.stars=Array(8).fill(Number(b.value));paintTeacher()}
  else if(b.dataset.config){const k=b.dataset.config,i=Number(b.dataset.topic);if(k==='enabled')settings.enabled[i]=b.checked;else if(k==='stars')settings.stars[i]=Number(b.value);else if(k==='seconds')settings.seconds=clamp(Number(b.value)||45,10,180);else settings[k]=b.value;if(k==='quality')renderer?.setQuality(settings.quality);if(k!=='seconds')paintTeacher()}
  else return;store.set(SETTINGS_KEY,settings);if(race.status==='lobby'){$('#lobbySettings').textContent=`${settings.enabled.filter(Boolean).length} 類題型 · ${settings.timeMode==='fixed'?settings.seconds+' 秒／題':'依題型計時'}`}
 }
-function saveRace(){if(savedRace)return;savedRace=true;const record={seed:race.seed,date:new Date().toISOString(),themes:world.themes.map(t=>t.name),settings:race.settings,players:race.players.map(p=>({lane:p.lane,seat:p.seat,rank:rankOf(p),time:p.finishTime,results:p.results}))};records.push(record);if(records.length>200)records=records.slice(-200);store.set(RECORDS_KEY,records)}
-function paintReview(){$('#reviewContent').innerHTML=`<p class="note">${world.themes.map(t=>t.name).join(' → ')} · 5.00 km · ${race.status==='complete'?'全員完賽':'本場進行中'}</p>${[...race.players].sort((a,b)=>rankOf(a)-rankOf(b)).map(p=>`<section class="review-row"><h3 style="color:${PLAYER_COLORS[p.lane]}">${lanes[p.lane]} ${esc(p.seat)} 號 · 第 ${rankOf(p)} 名 · ${p.finishTime===null?'進行中':timeText(p.finishTime)}</h3><div>${p.results.filter(r=>r.correct).length} / ${p.results.length} 題答對 · 共獲得 ${p.results.reduce((sum,r)=>sum+r.bonus,0).toFixed(1)} 秒加速</div>${p.results.map(r=>`<details><summary class="${r.correct?'correct':'wrong'}">${r.correct?'✓':'×'} 第 ${r.number} 題 · ${esc(r.question.title)} ${r.hint?'· 已求救':''}</summary><div>${esc(r.question.instruction)}</div><p>${esc(r.question.formula)}</p><b>正確答案：${esc(correctText(r.question))}</b><ol>${r.question.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol><div class="mini-graph">${graphSVG(r.question)}</div></details>`).join('')}</section>`).join('')}<button data-action="export">↓ 匯出所有已完成場次 CSV</button>`}
+function saveRace(){if(savedRace)return;savedRace=true;const record={seed:race.seed,date:new Date().toISOString(),themes:world.themes.map(t=>t.name),settings:race.settings,players:race.players.map(p=>({lane:p.lane,seat:p.seat,rank:rankOf(p),time:p.finishTime,boostSchedule:p.boostHistory,results:p.results}))};records.push(record);if(records.length>200)records=records.slice(-200);store.set(RECORDS_KEY,records)}
+
 function exportRecords(){if(!records.length){toast('目前尚無三人全數完成的場次');return}const rows=[['場次','時間','風景','隊伍','座號','名次','完賽秒數','題次','題型','星等','答對','求救','獲得加速秒數','作答','正確答案']];for(const r of records)for(const p of r.players)for(const q of p.results)rows.push([r.seed,r.date,r.themes.join('→'),lanes[p.lane],p.seat,p.rank,p.time.toFixed(3),q.number,ISLANDS[q.island].name,q.stars,q.correct?'是':'否',q.hint?'是':'否',q.bonus.toFixed(3),typeof q.reply==='object'?JSON.stringify(q.reply):q.reply,correctText(q.question)]);const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n'),url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=`天空函數鐵道_三人競速_${new Date().toLocaleDateString('sv-SE')}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)}
 async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.webkitFullscreenElement)document.webkitExitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else if(document.documentElement.webkitRequestFullscreen)document.documentElement.webkitRequestFullscreen();else toast('可按 F11 進入瀏覽器全螢幕')}catch{toast('請按 F11 進入瀏覽器全螢幕')}}
 function action(b,e){const act=b.dataset.action,lane=b.closest('[data-lane]')?.dataset.lane,p=lane===undefined?null:race.players[Number(lane)];
@@ -136,7 +141,8 @@ function action(b,e){const act=b.dataset.action,lane=b.closest('[data-lane]')?.d
  if(act==='next-round'&&race.status==='complete'){for(const d of $$('dialog[open]'))d.close();prepareMap()}
  if(act==='sound'){settings.sound=!settings.sound;audio.init();store.set(SETTINGS_KEY,settings);$('#soundBtn').textContent=settings.sound?'♫ 音效開':'♫ 音效關'}
  if(act==='pause'||act==='resume'){advanceTo(performance.now());manualPaused=act==='resume'?false:!manualPaused;lastTime=performance.now();updatePauseUI()}
- if(act==='fullscreen')fullscreen();if(act==='teacher')openModal('teacherModal');if(act==='help')openModal('helpModal');if(act==='review')openModal('reviewModal');if(act==='close')closeModal(b.dataset.modal);
+ if(act==='review-player'&&p)paintOwnReview(p);if(act==='close-own-review'&&p)closeOwnReview(p);
+ if(act==='fullscreen')fullscreen();if(act==='teacher')openModal('teacherModal');if(act==='help')openModal('helpModal');if(act==='close')closeModal(b.dataset.modal);
  if(act==='preset'){const n=Number(b.dataset.count);settings.enabled=ISLANDS.map((_,i)=>i<n);settings.stars=[...BASE_STARS];store.set(SETTINGS_KEY,settings);paintTeacher();if(race.status==='lobby')$('#lobbySettings').textContent=`${n} 類題型 · ${settings.timeMode==='fixed'?settings.seconds+' 秒／題':'依題型計時'}`}
  if(act==='reset-settings'){settings=defaultSettings();store.set(SETTINGS_KEY,settings);renderer?.setQuality(settings.quality);$('#soundBtn').textContent='♫ 音效開';if(audio.master)audio.master.gain.value=.55;paintTeacher();if(race.status==='lobby')$('#lobbySettings').textContent='4 類題型 · 45 秒／題'}
  if(act==='diagnostics'){diagnosticMode=!diagnosticMode;$('#diagnostics').classList.toggle('hidden',!diagnosticMode);paintTeacher();updateDiagnostics(stats)}if(act==='export')exportRecords();
@@ -156,8 +162,8 @@ function init(){
  $('#teacherContent').addEventListener('input',e=>{if(e.target.dataset.config==='seconds')settingsChanged(e)});
  for(const d of $$('dialog'))d.addEventListener('close',()=>{lastTime=performance.now();updatePauseUI()});
  const syncFullscreen=()=>{const on=Boolean(document.fullscreenElement||document.webkitFullscreenElement);$('#fullscreenBtn').textContent=on?'⛶ 離開全螢幕':'⛶ 全螢幕';$('#fullscreenBtn').setAttribute('aria-label',on?'離開全螢幕':'進入全螢幕');$('#fullscreenBtn').setAttribute('aria-pressed',String(on));renderer?.resize()};document.addEventListener('fullscreenchange',syncFullscreen);document.addEventListener('webkitfullscreenchange',syncFullscreen);
- document.addEventListener('visibilitychange',()=>{if(document.hidden&&['countdown','racing'].includes(race?.status)){manualPaused=true;updatePauseUI()}lastTime=performance.now()});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden&&['countdown','racing','coasting'].includes(race?.status)){manualPaused=true;updatePauseUI()}lastTime=performance.now()});
  document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea,button')||$$('dialog[open]').length||isPaused())return;const p=race.players[0];if(p.phase!=='question')return;if(/^[0-9.]$/.test(e.key)){e.preventDefault();keyInput(p,e.key)}else if(e.key==='-'){e.preventDefault();keyInput(p,'±')}else if(e.key==='Backspace'){e.preventDefault();keyInput(p,'⌫')}else if(e.key==='Enter'){e.preventDefault();submit(p)}else if(e.key==='Tab'){e.preventDefault();keyInput(p,'→')}});
- $('#soundBtn').textContent=settings.sound?'♫ 音效開':'♫ 音效關';initRenderer();prepareMap();updateDiagnostics(stats);lastTime=performance.now();requestAnimationFrame(tick);
+ $('#soundBtn').textContent=settings.sound?'♫ 音效開':'♫ 音效關';effects=new SpeedEffects($('#effectsCanvas'),$('#gameBoard'),$$('.lane'));initRenderer();prepareMap();updateDiagnostics(stats);lastTime=performance.now();requestAnimationFrame(tick);
 }
 init();

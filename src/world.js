@@ -1,4 +1,4 @@
-import {random, clamp} from './math.js?v=1.1.0';
+import {random, clamp} from './math.js?v=1.2.0';
 export const METRES_PER_UNIT=1.6, ROUTE_METRES=5000, WORLD_END=4700/METRES_PER_UNIT;
 export const RUNOUT_METRES=600, WORLD_DRAW_END=WORLD_END+RUNOUT_METRES/METRES_PER_UNIT;
 const LAND_SCALE=10/METRES_PER_UNIT;
@@ -28,19 +28,30 @@ export class SharedWorld{
   this.phases=Array.from({length:6},()=>r()*Math.PI*2);
   this.turns=1.2+r()*.65;
   this.routes=Array.from({length:3},(_,lane)=>this.makeRoute(lane,r));
+  // Raised stretches occupy a seeded fraction of arc length; the rest hugs the ground.
+  this.groundFraction=.50+r()*.35;
+  const width=(1-this.groundFraction)*ROUTE_METRES/5;
+  this.landforms=Array.from({length:5},(_,i)=>({center:650+i*920,start:650+i*920-width/2,end:650+i*920+width/2,kind:i%2?'canyon':'river',depth:i%2?10:4.2}));
+  this.caves=[1110,2030,3870];
  }
  envelope(t){return smooth(t/.1)*smooth((1-t)/.1)}
  centerZ(t){return this.envelope(t)*LAND_SCALE*(12*Math.sin(2*Math.PI*this.turns*t+this.phases[0])+5*Math.sin(6*Math.PI*t+this.phases[1]))}
  baseY(t){return this.envelope(t)*LAND_SCALE*(2.2+2*Math.sin(4*Math.PI*t+this.phases[2]))}
  terrainY(x,z){
-  const t=clamp(x/WORLD_END,0,1),base=this.baseY(t);let h=base;
+  const t=clamp(x/WORLD_END,0,1),base=this.baseY(t);let h=base-.18;
   if(this.routes){const ps=this.routes.map((_,i)=>this.pointAtX(i,x));
-   if(z<ps[0][2])h=lerp(ps[0][1],base,smooth((ps[0][2]-z)/23));
-   else if(z>ps[2][2])h=lerp(ps[2][1],base,smooth((z-ps[2][2])/23));
-   else {const j=z<ps[1][2]?0:1;h=lerp(ps[j][1],ps[j+1][1],(z-ps[j][2])/(ps[j+1][2]-ps[j][2]));}
+   const ys=ps.map((p,i)=>p[1]-this.trackClearance(i,x));
+   if(z<ps[0][2])h=lerp(ys[0],base-.18,smooth((ps[0][2]-z)/32));
+   else if(z>ps[2][2])h=lerp(ys[2],base-.18,smooth((z-ps[2][2])/32));
+   else {const j=z<ps[1][2]?0:1;h=lerp(ys[j],ys[j+1],(z-ps[j][2])/(ps[j+1][2]-ps[j][2]));}
   }
-  return h-3.4+.16*Math.sin(x*.19+z*.1);
+  const near=Math.min(...this.routes.map((_,i)=>Math.abs(this.pointAtX(i,x)[2]-z)));
+  const gate=Math.min(Math.abs(x),Math.abs(x-WORLD_END));
+  return h+.22*Math.sin(x*.031+z*.09)*smooth((near-1.4)/9)*smooth((gate-25)/35);
  }
+ distanceAtX(lane,x){const route=this.routes[lane],v=clamp(x/WORLD_END,0,1)*(route.distances.length-1),i=Math.floor(v);return lerp(route.distances[i],route.distances[Math.min(i+1,route.distances.length-1)],v-i)}
+ featureAt(lane,x){const d=this.distanceAtX(lane,x);return this.landforms?.find(f=>d>=f.start&&d<=f.end)||null}
+ trackClearance(lane,x){if(x<=0||x>=WORLD_END||!this.landforms)return .18;const d=this.distanceAtX(lane,x),f=this.featureAt(lane,x);if(!f)return .18;return .18+(f.depth-.18)*smooth(Math.min(d-f.start,f.end-d)/28)}
  makeRoute(lane,r){
   const side=lane-1,fs=[1.4+side*.01,1.55-side*.01],phases=[this.phases[4]+side*.018,this.phases[5]-side*.018],turn=r()*1.2+.8;
   const raw=(t,amps)=>{

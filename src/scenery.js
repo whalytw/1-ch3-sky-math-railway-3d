@@ -1,6 +1,6 @@
-import {Geometry} from './geometry.js?v=1.1.0';
-import {WORLD_END,WORLD_DRAW_END,normalize,sub,add,scale} from './world.js?v=1.1.0';
-import {random,clamp} from './math.js?v=1.1.0';
+import {Geometry} from './geometry.js?v=1.2.0';
+import {WORLD_END,WORLD_DRAW_END,normalize,sub,add,scale} from './world.js?v=1.2.0';
+import {random,clamp} from './math.js?v=1.2.0';
 export const CHUNK_SIZE=17;
 const offset=(p,n,k)=>add(p,scale(n,k));
 function tree(g,x,y,z,s,t,snow=false){
@@ -47,15 +47,47 @@ export function makeChunk(w,index){
  for(let lane=0;lane<3;lane++){
   for(let x=x0;x<x1-.001;x+=.85){const a=w.pointAtX(lane,x),b=w.pointAtX(lane,Math.min(x1,x+.85)),n=normalize([-(b[2]-a[2]),0,b[0]-a[0]]);
    for(const side of [-1,1])g.rod(offset(a,n,side*.46),offset(b,n,side*.46),.09,.095,'#c5d2cc');
+   if(w.trackClearance(lane,x)<=.6)g.rod(add(a,[0,-.20,0]),add(b,[0,-.20,0]),1.65,.18,'#899080');
+   if(w.trackClearance(lane,x)>.6){g.rod([a[0],a[1]-.27,a[2]],[b[0],b[1]-.27,b[2]],1.65,.19,'#a88c68');for(const side of[-1,1]){g.rod(offset(add(a,[0,.48,0]),n,side*.94),offset(add(b,[0,.48,0]),n,side*.94),.045,.045,'#b9c9bb');if(Math.floor(x*2)%5===0)g.rod(offset(add(a,[0,-.18,0]),n,side*.94),offset(add(a,[0,.48,0]),n,side*.94),.065,.065,'#b9c9bb')}}
   }
   for(let x=Math.ceil(x0/.68)*.68;x<x1;x+=.68){const p=w.pointAtX(lane,x),b=w.pointAtX(lane,x+.05),n=normalize([-(b[2]-p[2]),0,b[0]-p[0]]);g.rod(offset([p[0],p[1]-.1,p[2]],n,-.72),offset([p[0],p[1]-.1,p[2]],n,.72),.14,.13,'#79644f')}
-  for(let x=Math.ceil(x0/5)*5;x<x1;x+=5){const p=w.pointAtX(lane,x),ground=w.terrainY(x,p[2]),h=p[1]-ground;g.box(x,ground+h*.5-.25,p[2],.23,h+.3,.3,'#778577')}
+  for(let x=Math.ceil(x0/5)*5;x<x1;x+=5){const p=w.pointAtX(lane,x),ground=w.terrainY(x,p[2]),h=p[1]-ground;if(h>.8)g.box(x,ground+h*.5-.25,p[2],.24,h+.3,.32,'#7f8d83')}
  }
+ makeLandmarks(g,w,index,x0,x1,r);
  if(index===0)makeArch(g,0,0,'#79dcc5',false);
  if(x0<=WORLD_END&&x1>WORLD_END)makeArch(g,WORLD_END,0,'#ffce82',true);
  // A single shared biome checkpoint; each route is exactly 2.5 km here.
  if(x0<WORLD_END/2&&x1>=WORLD_END/2){const x=WORLD_END/2;for(let lane=0;lane<3;lane++){const p=w.pointAtX(lane,x);for(const side of [-1,1]){g.box(x,p[1]+1,p[2]+side*1.25,.14,2,.14,'#e7d58f');g.box(x,p[1]+1.6,p[2]+side*1.25,.12,.5,.5,lane===0?'#72dce6':lane===1?'#ffb76a':'#95e1a2')}}}
  return g.array();
+}
+function makeLandmarks(g,w,index,x0,x1,r){
+ const xc=(x0+x1)/2,t=w.themeAtX(xc),f=w.featureAt(1,xc),mid=w.pointAtX(1,xc),ps=w.routes.map((_,i)=>w.pointAtX(i,xc));
+ if(f){
+  const floor=Math.min(...ps.map((p,i)=>p[1]-w.trackClearance(i,xc)));
+  if(f.kind==='river'&&w.trackClearance(1,xc)>1){
+   g.box(xc,floor+.18,mid[2],x1-x0+.03,.10,39,'#458f9f');
+   for(let j=0;j<4;j++)g.box(x0+(j+.5)*(x1-x0)/4,floor+.24,mid[2]-14+r()*28,.08,.02,2+r()*4,'#a5d5d9');
+  }
+  if(f.kind==='canyon')for(const side of[-1,1]){
+   const z=mid[2]+side*24,y=w.terrainY(xc,z);g.ellipsoid(xc,y-2,z,6,6,4,'#ad805d',9,5);g.box(xc,y-1,z,8,.42,7,'#dfb285');
+  }
+ }
+ if(index%9===4)for(const side of[-1,1]){
+  const z=(side<0?ps[0][2]:ps[2][2])+side*(12+r()*7),y=w.terrainY(xc,z),s=2+r()*3;
+  g.ellipsoid(xc,y+s*.6,z,s,s*1.2,s*.8,t.id==='snow'?'#bfced1':'#8d938c',8,5);
+ }
+ if(index%23===11&&t.id!=='volcano'&&t.id!=='desert'){
+  const z=ps[2][2]+20,y=w.terrainY(xc,z)-.1;
+  g.ellipsoid(xc,y-.3,z,10,.45,6,'#568f9a',14,5);g.ellipsoid(xc,y-.22,z,8,.39,4.5,'#76b5bf',14,4);
+ }
+ // Individual tunnels follow each track, with a clear opening above both cart and camera.
+ for(const d of w.caves)for(let lane=0;lane<3;lane++){
+  const p=w.sample(lane,d).point;if(p[0]<x0||p[0]>=x1||w.trackClearance(lane,p[0])>.4)continue;
+  const a=w.pointAtX(lane,p[0]-5),b=w.pointAtX(lane,p[0]+5),right=normalize([-(b[2]-a[2]),0,b[0]-a[0]]);
+  for(const side of[-1,1])g.rod(offset(add(a,[0,1.9,0]),right,side*1.7),offset(add(b,[0,1.9,0]),right,side*1.7),.55,4.1,'#7c8278');
+  g.rod(add(a,[0,4.18,0]),add(b,[0,4.18,0]),3.9,.52,'#959b88');
+  for(const end of[a,b])for(let j=0;j<5;j++){const angle=(j+.5)*Math.PI/5;g.ellipsoid(end[0],end[1]+3.4+Math.sin(angle)*.7,end[2]+Math.cos(angle)*1.8,.6,.65,.6,'#a2a48f',7,4)}
+ }
 }
 const GLYPHS={
  S:['01111','10000','10000','01110','00001','00001','11110'],T:['11111','00100','00100','00100','00100','00100','00100'],A:['01110','10001','10001','11111','10001','10001','10001'],R:['11110','10001','10001','11110','10100','10010','10001'],G:['01111','10000','10000','10111','10001','10001','01110'],O:['01110','10001','10001','10001','10001','10001','01110'],L:['10000','10000','10000','10000','10000','10000','11111']};
@@ -66,17 +98,40 @@ export function makeArch(g,x,y,color,finish){
  archLettering(g,finish?'GOAL':'START',x-.50,y+4.7,1);archLettering(g,finish?'GOAL':'START',x+.50,y+4.7,-1);
  for(let j=0;j<12;j++)g.box(x,y+5.45,(j-5.5)*.9,.9,.18,.86,j%2?'#edf2d6':finish?'#52646b':'#538c76');
 }
-export function makeCart(color){const g=new Geometry();g.box(0,.42,0,1.45,.56,1.05,color);g.box(.64,.65,0,.18,.7,1.12,color);g.box(-.65,.65,0,.17,.7,1.12,'#345266');for(const side of [-1,1]){g.box(0,.65,side*.53,1.4,.65,.13,color);g.rod([-.6,1,side*.59],[.65,1,side*.59],.07,.07,'#e3e9d4')}
- for(const x of [-.46,.46])for(const side of [-1,1]){g.sphere(x,.13,side*.53,.22,'#34444b',8,4);g.sphere(x,.13,side*.67,.08,'#b7c7b8',6,3)}g.sphere(.76,.72,0,.12,'#fff3b4',6,3);return g.array()}
+const DIGITS={0:['111','101','101','101','111'],1:['010','110','010','010','111'],2:['111','001','111','100','111'],3:['111','001','111','001','111'],4:['101','101','111','001','001'],5:['111','100','111','001','111'],6:['111','100','111','101','111'],7:['111','001','010','010','010'],8:['111','101','111','101','111'],9:['111','101','111','001','111']};
+export function makeCart(color,seat=''){
+ const g=new Geometry();
+ // Separate watertight floor and four walls: no overlapping coplanar rear faces.
+ g.box(0,.30,0,1.52,.19,1.18,'#304b58');
+ g.box(.70,.74,0,.14,.70,1.18,color);g.box(-.70,.74,0,.14,.70,1.18,color);
+ for(const side of[-1,1]){g.box(0,.74,side*.55,1.26,.70,.12,color);g.rod([-.64,1.10,side*.55],[.64,1.10,side*.55],.07,.07,'#e7e5ce')}
+ g.box(-.782,.76,0,.025,.48,.78,'#203c4c');
+ const text=String(seat).replace(/[^0-9]/g,'').slice(0,2),cell=.061,width=(text.length*4-1)*cell;
+ for(let k=0;k<text.length;k++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)if(DIGITS[text[k]][row][col]==='1')g.box(-.806,.76+(2-row)*cell,-width/2+(k*4+col+.5)*cell,.013,cell*.85,cell*.85,'#fff2cc');
+ for(const x of[-.46,.46])for(const side of[-1,1]){g.sphere(x,.13,side*.53,.22,'#34444b',8,4);g.sphere(x,.13,side*.69,.08,'#b7c7b8',6,3)}g.sphere(.79,.72,0,.10,'#fff3b4',6,3);return g.array();
+}
 export function makeCharacter(color,standing=false){
- const g=new Geometry(),skin='#f3d0ab',pants='#263f50';g.box(0,.12,0,.37,.48,.46,color);g.box(.02,-.14,0,.35,.22,.43,pants);
- for(const side of [-1,1]){const z=side*.14;if(standing){g.rod([0,-.15,z],[.01,-.62,z],.145,.15,pants);g.box(.10,-.73,z,.33,.19,.19,'#3d3f3a')}else{g.rod([0,-.15,z],[.30,-.28,z],.17,.17,pants);g.rod([.30,-.28,z],[.33,-.57,z],.15,.15,pants);g.box(.42,-.65,z,.30,.16,.20,'#3d3f3a')}}
- g.sphere(0,.54,0,.25,skin,9,6);g.sphere(-.065,.70,0,.275,'#675748',8,4);g.box(.12,.75,0,.43,.07,.59,'#f0c55c');g.sphere(.23,.76,0,.075,'#fff2b7',6,3);
- for(const side of [-1,1]){g.sphere(.01,.53,side*.24,.055,skin,6,3);g.sphere(.232,.59,side*.092,.046,'#fffbea',7,4);g.sphere(.273,.59,side*.092,.023,'#26313e',6,3);g.sphere(.245,.492,side*.145,.026,'#eeb1a0',6,3);if(side===1)g.rod([.02,.19,.27],[.29,-.1,.39],.14,.14,skin)}
- g.sphere(.268,.53,0,.037,skin,6,3);
- // A real front-facing smile, visible in the finish orbit.
- for(let j=0;j<8;j++){const z0=-.092+j*.023,z1=z0+.023,y=z=>.435+.036*(z/.092)**2;g.rod([.244,y(z0),z0],[.244,y(z1),z1],.014,.014,'#755047')}
- return g.array();
+ const g=new Geometry(),skin='#f1c9a8',pants='#344c61',boot='#624f42';
+ // Original round-faced expedition rider with overalls, a scarf and a smooth helmet.
+ g.ellipsoid(0,.13,0,.23,.31,.25,color,12,7);g.box(.19,.07,0,.05,.28,.31,pants);g.box(.222,.14,0,.02,.10,.12,'#e6c777');
+ g.box(0,-.14,0,.35,.20,.43,pants);
+ for(const side of[-1,1]){const z=side*.14;if(standing){g.rod([0,-.15,z],[.01,-.62,z],.145,.15,pants);g.ellipsoid(.10,-.72,z,.18,.11,.105,boot,10,5)}else{g.rod([0,-.15,z],[.30,-.28,z],.17,.17,pants);g.rod([.30,-.28,z],[.33,-.57,z],.15,.15,pants);g.ellipsoid(.42,-.64,z,.17,.09,.11,boot,10,5)}}
+ g.ellipsoid(0,.59,0,.265,.30,.25,skin,16,10);
+ g.ellipsoid(-.13,.63,0,.17,.23,.253,'#695044',12,7);
+ g.ellipsoid(-.02,.73,0,.30,.23,.30,'#edbe5c',16,6,.0,Math.PI/2);
+ g.box(.065,.735,0,.48,.045,.64,'#f5d080');g.ellipsoid(.285,.81,0,.046,.056,.065,'#f9f1c7',10,5);
+ const faceX=(y,z)=>.265*Math.sqrt(Math.max(.05,1-((y-.59)/.30)**2-(z/.25)**2));
+ for(const side of[-1,1]){
+  g.ellipsoid(.0,.59,side*.249,.06,.08,.05,skin,10,5);
+  const z=side*.094;g.ellipsoid(faceX(.625,z)+.010,.625,z,.018,.049,.037,'#fff7e7',10,6);
+  g.ellipsoid(faceX(.625,z)+.029,.625,z-.005,.012,.029,.019,'#35465a',10,6);g.ellipsoid(faceX(.638,z)+.041,.638,z-.010,.005,.009,.007,'#ffffff',8,4);
+  g.rod([faceX(.696,z-.028)+.009,.696,z-.028],[faceX(.696,z+.028)+.009,.696,z+.028],.014,.015,'#71564b');
+  g.ellipsoid(faceX(.536,side*.145)+.008,.536,side*.145,.010,.023,.034,'#e8a593',10,5);
+  if(side===1){g.rod([.02,.22,.25],[.29,-.08,.39],.13,.13,skin);g.ellipsoid(.29,-.08,.39,.08,.09,.08,skin,9,5)}
+ }
+ g.ellipsoid(.275,.569,0,.030,.032,.031,skin,10,5);
+ for(let j=0;j<10;j++){const z0=-.09+j*.018,z1=z0+.018,y=z=>.474+.028*(z/.09)**2;g.rod([faceX(y(z0),z0)+.014,y(z0),z0],[faceX(y(z1),z1)+.014,y(z1),z1],.012,.012,'#976357')}
+ g.ellipsoid(.05,.355,0,.24,.055,.26,'#e6b36f',12,5);return g.array();
 }
 export function makeArm(){const g=new Geometry();g.rod([0,0,0],[0,-.58,0],.15,.15,'#f3d0ab');g.sphere(0,-.64,0,.095,'#f3d0ab',6,4);return g.array()}
 function cylinderX(g,x0,x1,r,color,sides=8){for(let j=0;j<sides;j++){const a=j*Math.PI*2/sides,b=(j+1)*Math.PI*2/sides,p=(x,t)=>[x,Math.cos(t)*r,Math.sin(t)*r];g.quad(p(x0,a),p(x1,a),p(x1,b),p(x0,b),color);g.triangle([x0,0,0],p(x0,b),p(x0,a),color);g.triangle([x1,0,0],p(x1,a),p(x1,b),color)}}

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#102c36"><meta name="description" content="三人同時出發的 5 公里數學礦車競速。共享隨機地圖、八種風景、答題加速。">
-<title>天空函數鐵道 3D｜三人競速 V1.1</title>
-<link rel="icon" href="./assets/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=1.1.0">
+<title>天空函數鐵道 3D｜三人競速 V1.2</title>
+<link rel="icon" href="./assets/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=1.2.0">
 </head>
 <body>
 <div id="app">
  <header class="topbar">
-  <div class="brand"><span class="brand-icon">✦</span><div><b>天空函數鐵道 <em>3D</em></b><small>SHARED EXPEDITION <span>／ 三人競速 V1.1</span></small></div></div>
+  <div class="brand"><span class="brand-icon">✦</span><div><b>天空函數鐵道 <em>3D</em></b><small>SHARED EXPEDITION <span>／ 三人競速 V1.2</span></small></div></div>
   <div class="route-meta" id="routeMeta">共用地圖 · 5.00 km</div>
   <nav class="toolbar" aria-label="遊戲控制">
    <button data-action="sound" id="soundBtn" title="開關音效">♫ 音效開</button>
@@ -28,9 +28,9 @@
    <p class="lobby-lead">三台礦車一起出發。答對數學題，累積加速秒數，<br>穿越兩種隨機風景，向 5 公里終點前進。</p>
    <div class="biome-pair" id="biomePair"></div>
    <div class="seat-row">
-    <label style="--player:#69dfed">藍隊座號<input id="seat-0" type="number" min="1" max="50" value="1" inputmode="numeric" aria-label="藍隊座號"></label>
-    <label style="--player:#ffba75">橘隊座號<input id="seat-1" type="number" min="1" max="50" value="2" inputmode="numeric" aria-label="橘隊座號"></label>
-    <label style="--player:#a4e799">綠隊座號<input id="seat-2" type="number" min="1" max="50" value="3" inputmode="numeric" aria-label="綠隊座號"></label>
+    <label style="--player:#69dfed">藍隊座號<select id="seat-0" aria-label="藍隊座號"><option value="1">1 號</option></select></label>
+    <label style="--player:#ffba75">橘隊座號<select id="seat-1" aria-label="橘隊座號"><option value="2">2 號</option></select></label>
+    <label style="--player:#a4e799">綠隊座號<select id="seat-2" aria-label="綠隊座號"><option value="3">3 號</option></select></label>
    </div>
    <div class="lobby-actions"><button class="primary" data-action="start">▶ 三人同時出發</button><button data-action="new-map">↻ 換一張地圖</button></div>
    <div class="lobby-foot"><span id="lobbySettings"></span><span>每題 1 張求救卡 · 使用扣 10 秒</span></div>
@@ -55,5 +55,5 @@
  </div>
 </dialog>
 <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./src/app.js?v=1.1.0"></script>
+<script type="module" src="./src/app.js?v=1.2.0"></script>
 </body></html>

@@ -1,4 +1,4 @@
-import {normalize,cross,sub} from './world.js?v=1.2.0';
+import {normalize,cross,sub} from './world.js?v=1.3.0';
 // Compatibility mode reuses the real original 3D meshes as cached painted sprites.
 // Rasterize once when a map/seat changes, never rebuild triangles during gameplay.
 export function makeSprite(data,front=false){
@@ -16,6 +16,6 @@ export function makeSprite(data,front=false){
   for(let y=loY;y<=hiY;y++)for(let x=loX;x<=hiX;x++){const A=((b.y-c.y)*(x+.5-c.x)+(c.x-b.x)*(y+.5-c.y))/det,B=((c.y-a.y)*(x+.5-c.x)+(a.x-c.x)*(y+.5-c.y))/det,C=1-A-B;if(A<0||B<0||C<0)continue;const depth=A*a.depth+B*b.depth+C*c.depth,index=y*320+x;if(depth>=depths[index])continue;depths[index]=depth;const p=index*4;pixels[p]=color[0];pixels[p+1]=color[1];pixels[p+2]=color[2];pixels[p+3]=255}
  }
  ctx.putImageData(image,0,0);
- return {canvas,x:x0-ox/factor,y:y0-oy/factor,size:320/factor};
+ return {canvas,x:x0-ox/factor,y:y0-oy/factor,size:320/factor,content:{x:ox,y:oy,width:(x1-x0)*factor,height:(y1-y0)*factor}};
 }
 export function paintSprite(ctx,sprite,x,y,scale){if(sprite)ctx.drawImage(sprite.canvas,x+sprite.x*scale,y+sprite.y*scale,sprite.size*scale,sprite.size*scale)}

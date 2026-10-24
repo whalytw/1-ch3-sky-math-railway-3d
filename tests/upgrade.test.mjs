@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {generateQuestion} from '../src/math.js';
 import {SharedWorld,WORLD_END} from '../src/world.js';
-import {DECORATIONS,DENSITY_BUDGET,DECORATION_RADII,DecorationSystem,makeDecoration,defaultDecorations,safeFromRiders} from '../src/decorations.js';
+import {DECORATIONS,DENSITY_BUDGET,DECORATION_RADII,DecorationSystem,makeDecoration,defaultDecorations,safeFromRiders,safeDecoration} from '../src/decorations.js';
 import {defaultSettings,normalizeSettings,formatRaceTime} from '../src/race.js';
 import {makeCart,makeCharacter} from '../src/scenery.js';
 import {BACKGROUNDS,makePanorama} from '../src/background.js';
@@ -34,7 +34,7 @@ const seen=new Set();let instances=0;
 for(let seed=0;seed<8;seed++){
  const w=new SharedWorld('decor-upgrade-'+seed),players=[0,1,2].map(lane=>({lane,distance:0,renderDistance:0}));
  const sys=new DecorationSystem(w,{...settings,decorationDensity:'rich'});
- for(let distance=0;distance<=5000;distance+=100){players.forEach((p,i)=>{p.distance=Math.max(0,distance-i*20);p.renderDistance=p.distance});const clock=distance/12,items=sys.instances(players,clock);assert.ok(items.length<=30);for(const item of items){assert.ok(safeFromRiders(item.point,item.radius,w,players));assert.ok(item.point.every(Number.isFinite));seen.add(item.id);if(item.id==='snow')assert.equal(w.themeAtX(Math.round(item.point[0]/30)*30).id,'snow');if(item.id==='tumbleweeds')assert.ok(players.every(p=>Math.abs(w.sample(p.lane,p.distance).point[0]-item.point[0])>=18));instances++}}
+ for(let distance=0;distance<=5000;distance+=100){players.forEach((p,i)=>{p.distance=Math.max(0,distance-i*20);p.renderDistance=p.distance});const clock=distance/12,items=sys.instances(players,clock);assert.ok(items.length<=30);for(const item of items){assert.ok(safeDecoration(item,w,players));assert.ok(item.point.every(Number.isFinite));seen.add(item.id);if(item.id==='snow')assert.equal(w.themeAtX(Math.round(item.point[0]/30)*30).id,'snow');if(item.id==='tumbleweeds')assert.ok(players.every(p=>Math.abs(w.sample(p.lane,p.distance).point[0]-item.point[0])>=18));instances++}}
  sys.setSettings({...settings,decorationDensity:'off'});assert.deepEqual(sys.instances(players,20),[]);
  sys.setSettings({...settings,decorations:Object.fromEntries(DECORATIONS.map(d=>[d.id,false]))});assert.deepEqual(sys.instances(players,20),[]);
  sys.setSettings({...settings,decorationDensity:'sparse',decorations:{...defaultDecorations(),dragons:false}});const items=sys.instances(players,20);assert.ok(items.length<=7);assert.ok(items.every(d=>d.id!=='dragons'));

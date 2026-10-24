@@ -1,6 +1,7 @@
-import {Geometry} from './geometry.js?v=1.2.0';
-import {random,clamp,hash32} from './math.js?v=1.2.0';
-import {WORLD_END,WORLD_DRAW_END,sub} from './world.js?v=1.2.0';
+import {Geometry} from './geometry.js?v=1.3.0';
+import {random,clamp,hash32} from './math.js?v=1.3.0';
+import {EscortDirector} from './encounters.js?v=1.3.0';
+import {WORLD_END,WORLD_DRAW_END,sub,add} from './world.js?v=1.3.0';
 
 export const DECORATIONS=Object.freeze([
  ['snow','雪地飄雪','weather'],['fireballs','火山火球','sky'],['birds','飛過的鳥群','sky'],['balloons','繽紛熱氣球','sky'],['crowds','沿途加油人群','ground'],['windmills','旋轉風車','ground'],['whales','飛翔鯨魚','sky'],['dragons','巨大火龍','sky'],['witches','掃把巫婆','sky'],['heroes','披風飛行英雄','sky'],['biplanes','雙翼螺旋槳飛機','sky'],['tumbleweeds','滾動風滾草','ground'],['dinosaurs','漫步巨型恐龍','ground'],['rain','陣雨','weather'],['rainbows','雨後彩虹','sky'],
@@ -8,6 +9,9 @@ export const DECORATIONS=Object.freeze([
 ].map(([id,label,zone],i)=>Object.freeze({id,label,zone,extra:i>=15})));
 export const DENSITY_BUDGET=Object.freeze({rich:30,medium:16,sparse:7,off:0});
 export const DECORATION_RADII=Object.freeze({snow:20,fireballs:3,birds:8,balloons:5,crowds:5,windmills:7,whales:7,dragons:9,witches:4,heroes:4,biplanes:5,tumbleweeds:2,dinosaurs:9,rain:20,rainbows:11,fireflies:5,butterflies:5,airships:6,paperplanes:8,islands:6,meteors:7,cloudsheep:4,robots:3,jellyfish:5,kites:7});
+const MODEL_BOUNDS=new Map();
+export function decorationBounds(id){if(!MODEL_BOUNDS.has(id))makeDecoration(id);return MODEL_BOUNDS.get(id)}
+export function crowdPositions(world,item){return Array.from({length:7},(_,j)=>{const x=item.point[0]+(j-3)*.8,z=item.point[2]+(j%2)*.7;return [x,world.footingY(x,z,.25),z]})}
 export const defaultDecorations=()=>Object.fromEntries(DECORATIONS.map(d=>[d.id,true]));
 export function normalizeDecorations(raw){return Object.fromEntries(DECORATIONS.map(d=>[d.id,raw?.[d.id]!==false]))}
 const wing=(g,x,y,z,s,color)=>{g.triangle([x+.3*s,y,z],[x-.8*s,y,z+2*s],[x-1.4*s,y,z+.3*s],color)};
@@ -50,6 +54,7 @@ export function makeDecoration(id,variant=0){
   g.cone(0,0,4.8,0,1.15,'#ded7ba',8);g.cone(0,4.5,5.8,0,1.4,'#a77961',8);
  }
  else if(id==='rotor'){for(const side of[-1,1]){g.box(0,side*1.35,0,.26,2.6,.10,cream);g.box(side*1.35,0,0,2.6,.26,.10,cream)}g.ellipsoid(0,0,0,.25,.25,.18,gold,8,5)}
+ else if(id==='spectator')person(g,0,0,0,.75,['#efbb74','#a8cc9b','#b4b3d9'][variant%3]);
  else if(id==='crowds')for(let j=0;j<7;j++)person(g,(j-3)*.8,0,(j%2)*.7,.75,['#efbb74','#a8cc9b','#b4b3d9'][j%3]);
  else if(id==='dinosaurs'){
   const c=['#94b682','#a0b6be','#d4ad78'][variant%3];g.ellipsoid(0,1.8,0,2.8,1.3,1.1,c,12,7);
@@ -88,25 +93,26 @@ export function makeDecoration(id,variant=0){
  else if(id==='kites')for(let j=0;j<4;j++){
   const x=-j*.9,y=j*.8,z=j*.7,c=['#e5a585','#e6cd8d','#9bbebb','#bca7ce'][j];g.quad([x,y+1,z],[x+.6,y,z],[x,y-.6,z],[x-.6,y,z],c);g.rod([x,y-.6,z],[x-.8,y-2,z],.025,.025,cream);
  }
- return g.array();
+ const data=g.array();if(!variant){const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];let radius=0;for(let i=0;i<data.length;i+=9){for(let k=0;k<3;k++){min[k]=Math.min(min[k],data[i+k]);max[k]=Math.max(max[k],data[i+k])}radius=Math.max(radius,Math.hypot(data[i],data[i+1],data[i+2]))}MODEL_BOUNDS.set(id,{min,max,radius})}return data;
 }
 export function safeFromRiders(point,radius,world,players){return players.every(p=>{const a=world.sample(p.lane,p.renderDistance??p.distance).point;return Math.hypot(...sub(point,[a[0],a[1]+1,a[2]]))>radius+4.2})}
+export function safeDecoration(item,world,players){if(item.id==='crowds')return crowdPositions(world,item).every(point=>safeFromRiders(point,1.5,world,players));if(item.id==='windmills')return players.every(p=>{const a=add(world.sample(p.lane,p.renderDistance??p.distance).point,[0,1,0]),q=item.point,dx=Math.max(0,Math.abs(a[0]-q[0])-2.8),dz=Math.max(0,Math.abs(a[2]-q[2])-1.3),dy=Math.max(0,q[1]-a[1],a[1]-q[1]-6);return Math.hypot(dx,dy,dz)>4.2});return safeFromRiders(item.point,item.radius,world,players)}
 export class DecorationSystem{
- constructor(world,settings={}){this.world=world;this.setSettings(settings)}
+ constructor(world,settings={}){this.world=world;this.escorts=new EscortDirector(world,decorationBounds);this.setSettings(settings)}
  setSettings(settings){this.settings=settings;this.enabled=normalizeDecorations(settings.decorations);this.density=settings.decorationDensity||'medium'}
- instances(players,clock,quality='medium'){
+ instances(players,clock,quality='medium',views=[]){
   const budget=Math.min(DENSITY_BUDGET[this.density]??16,quality==='low'?12:30);if(!budget)return[];
-  const w=this.world,positions=players.map(p=>w.sample(p.lane,p.renderDistance??p.distance).point),slots=new Set(),out=[];
+  const escorts=this.escorts.instances(players,clock,views,this.enabled,this.density);const w=this.world,positions=players.map(p=>w.sample(p.lane,p.renderDistance??p.distance).point),slots=new Set(),out=[];
   for(const p of positions)for(let i=Math.max(1,Math.floor((p[0]-100)/30));i<=Math.ceil((p[0]+110)/30)&&i*30<WORLD_DRAW_END-35;i++)slots.add(i);
   for(const slot of slots){
    const anchor=slot*30,r=random(w.seed+':decor:'+slot),theme=w.themeAtX(anchor).id;
    const pool=DECORATIONS.filter(d=>this.enabled[d.id]&&(d.id!=='snow'||theme==='snow')&&(d.id!=='fireballs'||theme==='volcano'));
    if(!pool.length)continue;const def=pool[(slot+hash32(w.seed)%pool.length)%pool.length],id=def.id,side=r()>.5?1:-1,phase=r()*6.283,track=w.routes.map((_,i)=>w.pointAtX(i,anchor));
    if((id==='rain'&&clock%40>15)||(id==='rainbows'&&clock%40<15))continue;
-   let x=anchor,z=(side<0?Math.min(...track.map(p=>p[2])):Math.max(...track.map(p=>p[2])))+side*(12+r()*8),y=w.terrainY(x,z),size=1,radius=3,motion=0,rotation=0,variant=0,source=null;
+   let x=anchor,z=(side<0?Math.min(...track.map(p=>p[2])):Math.max(...track.map(p=>p[2])))+side*(7+r()*6),y=w.terrainY(x,z),size=1,radius=3,motion=0,rotation=0,variant=0,source=null;
    if(def.zone==='sky'){
-    x+=Math.sin(clock*.15+phase)*8;y=Math.max(...track.map(p=>p[1]))+12+r()*10+Math.sin(clock*.7+phase)*.6;z+=side*4;
-    if(['whales','dragons','airships','islands'].includes(id)){size=1.25;radius=8;y+=6}
+    x+=Math.sin(clock*.15+phase)*8;y=track[(slot%3)][1]+7+r()*5+Math.sin(clock*.7+phase)*.6;z+=side*4;
+    if(['whales','dragons','airships','islands'].includes(id)){size=1.35;radius=8;y+=2}
     if(['birds','dragons','butterflies','paperplanes'].includes(id))motion=1;
     if(id==='fireballs'){source=[anchor,w.terrainY(anchor,z),z];const t=(clock*.3+phase)%1;x=anchor+Math.sin(phase)*t*7;y=source[1]+5.5+Math.sin(t*Math.PI)*13;radius=2}
     if(id==='meteors'){x=anchor+((clock*6+phase*10)%24-12);y+=6;radius=6}
@@ -118,12 +124,12 @@ export class DecorationSystem{
     // It crosses the shared tracks only when every cart is safely away from the whole crossing.
     const t=(clock*.13+phase)%1;x=anchor;const lo=Math.min(...track.map(p=>p[2]))-12,hi=Math.max(...track.map(p=>p[2]))+12;z=lo+(hi-lo)*t;
     if(positions.some(p=>Math.abs(p[0]-anchor)<18))continue;y=w.terrainY(x,z);radius=1.7;rotation=clock*2;
-   }else if(id==='windmills')radius=4;
-   else if(id==='crowds')motion=3;
+   }else if(id==='windmills'){radius=4;z=(side<0?track[0][2]:track[2][2])+side*6.5;y=w.footingY(x,z,.8)}
+   else if(id==='crowds'){motion=6;z=(side<0?track[0][2]:track[2][2])+side*6.2;y=w.footingY(x,z,.25)}
    else if(id==='fireflies'){motion=3;y+=1}
-   radius=Math.max(radius,DECORATION_RADII[id]*size);const point=[x,y,z];if(!safeFromRiders(point,radius,w,players)||source&&!safeFromRiders(source,7,w,players))continue;
+   radius=Math.max(radius,DECORATION_RADII[id]*size);const point=[x,y,z];if(!safeDecoration({id,point,radius},w,players)||source&&!safeFromRiders(source,7,w,players))continue;
    const nearest=Math.min(...positions.map(p=>Math.abs(p[0]-x)));out.push({id,point,size,radius,phase,motion,rotation,variant,nearest,side,source});
   }
-  return out.sort((a,b)=>a.nearest-b.nearest).slice(0,budget);
+  return [...escorts,...out.sort((a,b)=>a.nearest-b.nearest)].slice(0,budget);
  }
 }

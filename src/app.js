@@ -1,11 +1,11 @@
-import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.2.0';
-import {SharedWorld} from './world.js?v=1.2.0';
-import {Race,defaultSettings,normalizeSettings,formatRaceTime} from './race.js?v=1.2.0';
-import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.2.0';
-import {SpeedEffects} from './effects.js?v=1.2.0';
-import {bindPress} from './touch.js?v=1.2.0';
-import {DECORATIONS} from './decorations.js?v=1.2.0';
-import {BACKGROUNDS} from './background.js?v=1.2.0';
+import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.3.0';
+import {SharedWorld} from './world.js?v=1.3.0';
+import {Race,defaultSettings,normalizeSettings,formatRaceTime} from './race.js?v=1.3.0';
+import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.3.0';
+import {SpeedEffects} from './effects.js?v=1.3.0';
+import {bindPress} from './touch.js?v=1.3.0';
+import {DECORATIONS} from './decorations.js?v=1.3.0';
+import {BACKGROUNDS} from './background.js?v=1.3.0';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
@@ -108,7 +108,7 @@ function tick(now){advanceTo(now);if(goUntil&&now>goUntil){$('#countdown').class
  if(contextLost){switchFallback();contextLost=false}
  try{const clock=race.status==='lobby'?now/1000:race.elapsed;renderer?.frame(race.players,now,false,clock);effects?.frame(race.players,clock)}catch(error){console.error(error);manualPaused=true;switchFallback();toast('已切換到相容畫面；按繼續可接著遊玩。')}
  for(const p of race.players){const e=$('#exclaim-'+p.lane),point=renderer?.projections[p.lane];e.classList.toggle('hidden',p.exclaim<=0||!point?.visible);if(p.exclaim>0&&point){e.style.left=point.x+'px';e.style.top=point.y+'px'}}
- if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.2`;lastStatus=now}
+ if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.3`;lastStatus=now}
  requestAnimationFrame(tick);
 }
 function initRenderer(fallback=false){const canvas=$('#worldCanvas');try{renderer=fallback?new CanvasFallbackRenderer(canvas,$('#gameBoard'),$$('.lane')):new SharedRenderer(canvas,$('#gameBoard'),$$('.lane'));renderer.setQuality(settings.quality);renderer.setSceneSettings(settings);canvas.addEventListener('webglcontextlost',()=>{manualPaused=true;contextLost=true;updatePauseUI()});return true}catch(e){console.error(e);if(!fallback){const fresh=canvas.cloneNode(false);canvas.replaceWith(fresh);return initRenderer(true)}toast('此瀏覽器無法建立遊戲畫面，請使用已開啟硬體加速的 Chrome 或 Edge。');return false}}
@@ -123,7 +123,7 @@ function paintTeacher(){const n=settings.enabled.filter(Boolean).length;$('#teac
  <h3>遠景與動態點綴</h3><div class="setting-row"><label><input type="checkbox" data-config="background" ${settings.background?'checked':''}>顯示遠處背景貼圖</label><label>遠景主題<select data-config="backgroundStyle">${BACKGROUNDS.map(b=>`<option value="${b.id}" ${b.id===settings.backgroundStyle?'selected':''}>${b.label}</option>`).join('')}</select></label><label>點綴密度<select data-config="decorationDensity">${[['rich','豐富'],['medium','中等'],['sparse','少量'],['off','關閉']].map(([v,l])=>`<option value="${v}" ${settings.decorationDensity===v?'selected':''}>${l}</option>`).join('')}</select></label></div>
  <p class="note">三區共用同一套設定。題目依啟用的題型輪替，同一道次的題型一致，數字各自不同；持續出題直到各自抵達 5 公里。每題固定 1 張求救卡，使用立即扣 10 秒。</p>
  <div class="setting-row"><button data-action="diagnostics">${diagnosticMode?'關閉':'開啟'}三人觸控測試</button><button data-action="export">↓ 匯出成績 CSV</button><button data-action="reset-settings">恢復預設</button></div><p class="note">觸控測試會顯示三區接收次數、目前與最多同時觸點。數字鍵按下就生效，可三人同時按、快速連按；長按不連續輸入。</p>
- <h3>動態點綴細部開關 <small>每項可獨立選擇</small></h3><div class="decor-actions"><button data-action="decor-all" data-enabled="true">全部開啟</button><button data-action="decor-all" data-enabled="false">全部關閉</button></div><div class="decor-grid">${DECORATIONS.map(d=>`<label class="decor-option"><input type="checkbox" data-decoration="${d.id}" ${settings.decorations[d.id]?'checked':''}><span>${d.label}${d.extra?'<small>新增創意</small>':''}</span></label>`).join('')}</div><p class="decor-note">依風景與安全距離出現；飄雪限雪地、火球限火山。關閉密度會停用全部動態點綴。起終點迎賓觀眾固定保留。</p>
+ <h3>動態點綴細部開關 <small>每項可獨立選擇</small></h3><div class="decor-actions"><button data-action="decor-all" data-enabled="true">全部開啟</button><button data-action="decor-all" data-enabled="false">全部關閉</button></div><div class="decor-grid">${DECORATIONS.map(d=>`<label class="decor-option"><input type="checkbox" data-decoration="${d.id}" ${settings.decorations[d.id]?'checked':''}><span>${d.label}${d.extra?'<small>新增創意</small>':''}</span></label>`).join('')}</div><p class="decor-note">依風景與安全距離出現；飄雪限雪地、火球限火山。飛行物可在鏡頭內起伏伴飛。關閉密度會停用全部動態點綴。起終點迎賓觀眾固定保留。</p>
  <div class="teacher-footer"><span class="note" style="border:0;padding:0">5 km · JET 75／90／100 km/h · 答完等 5 秒</span><button class="primary" data-action="close" data-modal="teacherModal">✓ 完成設定</button></div>`}
 function refreshSeats(){for(let i=0;i<3;i++){const select=$('#seat-'+i),previous=Number(select.value)||i+1;select.innerHTML=Array.from({length:settings.seatMax},(_,n)=>`<option value="${n+1}">${n+1} 號</option>`).join('');select.value=String(Math.min(previous,settings.seatMax))}}
 function refreshTimeDisplays(){updateHUD();for(const p of race.players)if(p.finishTime!==null){paintFinish(p);if(p.reviewOpen)paintOwnReview(p)}if(race.status==='complete')$$('.next-round').forEach(b=>b.classList.remove('hidden'))}

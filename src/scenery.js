@@ -1,6 +1,6 @@
-import {Geometry} from './geometry.js?v=1.2.0';
-import {WORLD_END,WORLD_DRAW_END,normalize,sub,add,scale} from './world.js?v=1.2.0';
-import {random,clamp} from './math.js?v=1.2.0';
+import {Geometry} from './geometry.js?v=1.3.0';
+import {WORLD_END,WORLD_DRAW_END,TERRAIN_STEP,normalize,sub,add,scale} from './world.js?v=1.3.0';
+import {random,clamp} from './math.js?v=1.3.0';
 export const CHUNK_SIZE=17;
 const offset=(p,n,k)=>add(p,scale(n,k));
 function tree(g,x,y,z,s,t,snow=false){
@@ -8,23 +8,21 @@ function tree(g,x,y,z,s,t,snow=false){
  for(let j=0;j<2;j++)g.cone(x,y+s*(1+j*.63),y+s*(2.35+j*.5),z,s*(1-j*.18),snow?(j?'#eef3ed':t.tree):j?t.light:t.tree,6);
 }
 function house(g,x,y,z,s,t,r){g.box(x,y+s*.7,z,s*1.8,s*1.4,s*1.4,r()>.5?'#eed4a1':'#e4c4ae');g.pyramid(x,y+s*1.8,z,s*2.3,s*.9,t.id==='pastoral'?'#b96a4d':'#785b51');g.box(x-.3*s,y+s*.5,z+s*.72,.4*s,s,.045,'#4f6267');g.box(x+.5*s,y+s*.8,z+s*.72,.4*s,.4*s,.05,'#a0d2de')}
-function windmill(g,x,y,z,s){g.box(x,y+1.5*s,z,.8*s,3*s,.8*s,'#e3d8b4');g.pyramid(x,y+3.3*s,z,1.3*s,.8*s,'#976453');for(const k of [-1,1]){g.rod([x-1.6*s,y+(2.6+k*1.5)*s,z+.5*s],[x+1.6*s,y+(2.6-k*1.5)*s,z+.5*s],.25*s,.1*s,'#efebd4')}}
 function prop(g,w,t,x,z,r){
  const y=w.terrainY(x,z),s=.85+r()*1.1,v=r();
  if(t.id==='forest'){tree(g,x,y,z,s,t);if(v<.2)g.sphere(x+1,y+.3,z+.8,s*.45,'#7f8d79',5,3)}
- else if(t.id==='hills'){if(v<.35)tree(g,x,y,z,s*.8,t);else if(v<.43)windmill(g,x,y,z,s*.8);else g.sphere(x,y-.4,z,s*2.3,v<.7?'#abc57c':'#8baa68',7,4)}
+ else if(t.id==='hills'){if(v<.35)tree(g,x,y,z,s*.8,t);else if(v<.43)tree(g,x,y,z,s*.8,t);else g.sphere(x,y-.4,z,s*2.3,v<.7?'#abc57c':'#8baa68',7,4)}
  else if(t.id==='snow'){if(v<.7)tree(g,x,y,z,s,t,true);else {g.cone(x,y,y+s*3,z,s*1.9,'#a6bdc4',6);g.cone(x,y+s*1.9,y+s*3.05,z,s*.7,'#f5f5eb',6)}}
  else if(t.id==='volcano'){if(v<.35){g.cone(x,y,y+s*3.6,z,s*2,'#42474e',7);g.cone(x,y+s*3.2,y+s*3.65,z,s*.35,'#f39750',7);g.sphere(x+.2,y+s*4,z,s*.4,'#9b9b98',6,3)}else {g.sphere(x,y+.4,z,s,'#454951',6,3);if(v>.65)g.rod([x-1,y+.5,z],[x+1,y+.6,z+.5],.24,.05,'#ff9b4f')}}
  else if(t.id==='desert'){if(v<.45){g.box(x,y+s,z,s*.45,s*2,s*.4,t.tree);for(const k of [-1,1]){g.rod([x,y+s*.9,z],[x+k*s*.7,y+s*.9,z],s*.25,s*.25,t.tree);g.box(x+k*s*.7,y+s*1.25,z,s*.25,s*.7,s*.25,t.tree)}}else if(v<.8)g.sphere(x,y-s*.5,z,s*3,t.light,7,4);else {g.box(x,y+1.5*s,z,1.7*s,3*s,1.4*s,'#b18b68');g.box(x,y+3.2*s,z,2.4*s,.5*s,1.8*s,'#d8b68b')}}
  else if(t.id==='pastoral'){if(v<.3)house(g,x,y,z,s,t,r);else if(v<.6){g.box(x,y+.45,z,1.2*s,.9,1.2*s,'#e8c576');g.box(x,y+.95,z,.9*s,.2,.9*s,'#b79a50')}else for(let j=0;j<3;j++)g.box(x+j*.8,y+.12,z,.55,.25,3*s,j%2?'#dac96e':'#719b57')}
- else if(t.id==='country'){if(v<.5)house(g,x,y,z,s,t,r);else if(v<.63)windmill(g,x,y,z,s*.65);else tree(g,x,y,z,s*.8,t)}
+ else if(t.id==='country'){if(v<.5)house(g,x,y,z,s,t,r);else if(v<.63)house(g,x,y,z,s*.7,t,r);else tree(g,x,y,z,s*.8,t)}
  else {if(v<.7)tree(g,x,y,z,s*.9,t);else {g.sphere(x,y+.4,z,s,'#a3b5a6',6,3);for(let j=0;j<3;j++)g.rod([x+j*.3,y,z+1],[x+j*.3,y+1,z+1],.05,.05,'#5b8a62')}}
 }
 export function makeChunk(w,index){
  const g=new Geometry(),r=random(`${w.seed}:chunk:${index}`),x0=index*CHUNK_SIZE,x1=Math.min(WORLD_DRAW_END,x0+CHUNK_SIZE),xc=(x0+x1)/2,t=w.themeAtX(xc);
  // One deterministic terrain and prop batch, shared by all three cameras.
- const terrainRow=x=>{const c=w.centerZ(clamp(x/WORLD_END,0,1)),ps=w.routes.map((_,i)=>w.pointAtX(i,x)[2]);return [c-65,c-40,ps[0]-14,ps[0]-5,ps[0],ps[1],ps[2],ps[2]+5,ps[2]+14,c+40,c+65].map(z=>[x,w.terrainY(x,z),z])};
- for(let x=x0;x<x1-.01;x+=2.125){const a=terrainRow(x),b=terrainRow(Math.min(x1,x+2.125));for(let j=0;j<a.length-1;j++)g.quad(a[j],b[j],b[j+1],a[j+1],t.ground)}
+ for(let x=x0;x<x1-.01;x+=TERRAIN_STEP){const a=w.terrainRow(x),b=w.terrainRow(Math.min(x1,x+TERRAIN_STEP));for(let j=0;j<a.length-1;j++)g.quad(a[j],b[j],b[j+1],a[j+1],t.ground)}
  // Long distant ridges give depth at little GPU cost.
  for(const side of [-1,1]){
   const x=xc,z=w.centerZ(clamp(x/WORLD_END,0,1))+side*(51+r()*9),s=6+r()*8,y=w.terrainY(x,z)-.5;
@@ -140,7 +138,7 @@ export function makeFlame(color='#ff9c35'){const g=new Geometry();for(let j=0;j<
 export function makeCrowd(world){
  const g=new Geometry(),r=random(world.seed+':crowds'),shirts=['#e8b66b','#80bac4','#dc8e81','#9cbe7b','#c5a2d3'];
  for(const gate of [0,WORLD_END])for(const side of [-1,1])for(let j=0;j<15;j++){
-  const x=gate+(gate===0?-10+j*2.5:-12+j*10),z=side*(6.5+(j%2)*1.1),y=world.terrainY(x,z),s=.68+r()*.22,shirt=shirts[j%shirts.length],skin=j%3===0?'#c89472':'#efd0ad';
+  const x=gate+(gate===0?-10+j*2.5:-12+j*10),z=side*(6.5+(j%2)*1.1),y=world.footingY(x,z,.28),s=.68+r()*.22,shirt=shirts[j%shirts.length],skin=j%3===0?'#c89472':'#efd0ad';
   g.box(x,y+s*.75,z,s*.42,s*.62,s*.38,shirt);g.sphere(x,y+s*1.32,z,s*.25,skin,6,4);g.box(x,y+s*1.49,z,s*.52,s*.08,s*.49,j%2?'#ead59c':'#62776b');
   for(const k of [-1,1]){g.rod([x+k*s*.13,y+s*.5,z],[x+k*s*.16,y+s*.07,z],s*.14,s*.15,'#3c5260');g.rod([x+k*s*.25,y+s*.96,z],[x+k*s*.53,y+s*1.5,z],s*.12,s*.12,skin);g.sphere(x+k*s*.53,y+s*1.52,z,s*.075,skin,5,3)}
  }

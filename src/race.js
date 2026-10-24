@@ -1,7 +1,7 @@
-import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,generateQuestion,isCorrect} from './math.js?v=1.2.0';
-import {ROUTE_METRES} from './world.js?v=1.2.0';
-import {defaultDecorations,normalizeDecorations,DENSITY_BUDGET} from './decorations.js?v=1.2.0';
-import {BACKGROUNDS} from './background.js?v=1.2.0';
+import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,generateQuestion,isCorrect} from './math.js?v=1.3.0';
+import {ROUTE_METRES} from './world.js?v=1.3.0';
+import {defaultDecorations,normalizeDecorations,DENSITY_BUDGET} from './decorations.js?v=1.3.0';
+import {BACKGROUNDS} from './background.js?v=1.3.0';
 export const RULES=Object.freeze({distance:ROUTE_METRES,countdown:3,firstQuestion:8,cooldown:5,baseSpeed:60,maxSpeed:100,tierCaps:[60,75,90,100],startAcceleration:12,boostRamp:1.5,deceleration:5,hintCost:10,finishCoast:15,finishOrbit:2});
 export const defaultSettings=()=>({enabled:ISLANDS.map((_,i)=>i<4),stars:[...BASE_STARS],timeMode:'fixed',seconds:45,quality:'auto',sound:true,seatMax:30,scoreFormat:'seconds',decorationDensity:'medium',decorations:defaultDecorations(),background:true,backgroundStyle:'auto'});
 export function normalizeSettings(raw={}){raw=raw&&typeof raw==='object'?raw:{};const d=defaultSettings();return {...d,enabled:d.enabled.map((v,i)=>typeof raw.enabled?.[i]==='boolean'?raw.enabled[i]:v),stars:d.stars.map((v,i)=>clamp(Math.round(Number(raw.stars?.[i])||v),1,5)),seconds:clamp(Number(raw.seconds)||45,10,180),timeMode:raw.timeMode==='topic'?'topic':'fixed',quality:['auto','low','medium','high'].includes(raw.quality)?raw.quality:'auto',sound:raw.sound!==false,seatMax:clamp(Math.round(Number(raw.seatMax)||30),3,99),scoreFormat:raw.scoreFormat==='clock'?'clock':'seconds',decorationDensity:Object.hasOwn(DENSITY_BUDGET,raw.decorationDensity)?raw.decorationDensity:'medium',decorations:normalizeDecorations(raw.decorations),background:raw.background!==false,backgroundStyle:BACKGROUNDS.some(b=>b.id===raw.backgroundStyle)?raw.backgroundStyle:'auto'}}

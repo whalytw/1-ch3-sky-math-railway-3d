@@ -1,51 +1,62 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#071626" />
-  <meta name="description" content="天空函數鐵道 3D，三人獨立數學冒險遊戲。高中數學 CH3-2 簡單多項式函數及其圖形。" />
-  <title>天空函數鐵道 3D | Sky Math Railway</title>
-  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./styles.css" />
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102c36"><meta name="description" content="三人同時出發的 5 公里數學礦車競速。共享隨機地圖、八種風景、答題加速。">
+<title>天空函數鐵道 3D｜三人競速 V1.0</title>
+<link rel="icon" href="./assets/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=1.0.0">
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div class="brand"><div class="brand-logo">✦</div><div><div class="brand-title">天空函數鐵道 <span>3D</span></div><div class="brand-subtitle">SKY MATH RAILWAY · CH3-2 簡單多項式函數及其圖形</div></div></div>
-      <div class="top-actions">
-        <div class="top-stat" id="topStats">三人獨立冒險 · 已就緒</div>
-        <button class="top-btn" id="soundBtn" title="開關遊戲音效">♫ 音效</button>
-        <button class="top-btn" id="fullscreenBtn" type="button" title="切換全螢幕" aria-label="進入全螢幕" aria-pressed="false">⛶ 全螢幕</button>
-        <button class="top-btn" id="helpBtn">？ 玩法</button>
-        <button class="top-btn top-btn-primary" id="teacherBtn">⚙ 教師控制中心</button>
-      </div>
-    </header>
-    <main class="main-layout">
-      <section class="game-board" id="gameBoard" aria-label="三人遊戲區">
-        <canvas id="worldCanvas" aria-hidden="true"></canvas>
-        <div class="lane-grid" id="laneGrid"></div>
-      </section>
-      <footer class="bottom-bar"><span><b class="status-dot"></b><span id="renderStatus">3D 引擎準備中</span></span><span id="bottomNote">各區獨立進行 · 開島數×1 題 · 點選「教師控制中心」可調整</span></footer>
-    </main>
-  </div>
-  <div class="modal-backdrop hidden" id="teacherModal" role="dialog" aria-modal="true" aria-labelledby="teacherHeading">
-    <div class="modal teacher-modal">
-      <div class="modal-header"><div><div class="eyebrow">TEACHER CONTROL CENTER</div><h2 id="teacherHeading">教師控制中心</h2><p>三區路線完全獨立，所有變更從下一位學生開始生效。</p></div><button class="icon-btn" data-close="teacherModal" aria-label="關閉">✕</button></div>
-      <div id="teacherContent"></div>
-    </div>
-  </div>
-  <div class="modal-backdrop hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpHeading">
-    <div class="modal help-modal">
-      <div class="modal-header"><div><div class="eyebrow">HOW TO PLAY</div><h2 id="helpHeading">冒險指南</h2></div><button class="icon-btn" data-close="helpModal" aria-label="關閉">✕</button></div>
-      <div class="modal-body help-body">
-        <p>每個學生駕駛自己的礦車，自動前進並停靠數學機關。依畫面操作滑桿、按鈕或數字輸入，修復軌道繼續闖關。</p>
-        <div class="help-grid"><div><strong>① 選座號</strong><p>每區獨立輸入座號後開始；完成即可換下一位。</p></div><div><strong>② 建造軌道</strong><p>調整係數、平移圖形、判斷對稱與極值，實際影響 3D 景象。</p></div><div><strong>③ 答錯詳解</strong><p>首次答錯即顯示步驟及數學圖；本題零分，理解後可繼續。</p></div><div><strong>④ 教師分流</strong><p>三區可各自開關八座島嶼及設定 1～5 星，預設各開前四島。</p></div></div>
-        <p class="help-tip">提示：每區標題下方的「總共 n 關，共 m 星等」代表已開啟的島嶼數與星等總和。遊玩中的設定會等下一位學生再套用。</p>
-      </div>
-    </div>
-  </div>
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <script type="module" src="./src/app.js"></script>
-</body>
-</html>
+<div id="app">
+ <header class="topbar">
+  <div class="brand"><span class="brand-icon">✦</span><div><b>天空函數鐵道 <em>3D</em></b><small>SHARED EXPEDITION <span>／ 三人競速 V1.0</span></small></div></div>
+  <div class="route-meta" id="routeMeta">共用地圖 · 5.00 km</div>
+  <nav class="toolbar" aria-label="遊戲控制">
+   <button data-action="sound" id="soundBtn" title="開關音效">♫ 音效開</button>
+   <button data-action="pause" id="pauseBtn" disabled>Ⅱ 暫停</button>
+   <button data-action="fullscreen" id="fullscreenBtn" aria-label="進入全螢幕">⛶ 全螢幕</button>
+   <button data-action="help" title="玩法">？<span class="optional-label"> 玩法</span></button>
+   <button data-action="teacher" class="accent">⚙ 統一設定</button>
+  </nav>
+ </header>
+ <main class="game-board" id="gameBoard" aria-label="三人同地圖競速遊戲">
+  <canvas id="worldCanvas" aria-hidden="true"></canvas>
+  <div class="lanes" id="laneGrid"></div>
+  <section class="lobby glass" id="lobby">
+   <div class="eyebrow">THREE RIDERS. ONE ADVENTURE.</div>
+   <h1>同一片風景，<br>各自的精彩。</h1>
+   <p class="lobby-lead">三台礦車一起出發。答對數學題，累積加速秒數，<br>穿越兩種隨機風景，向 5 公里終點前進。</p>
+   <div class="biome-pair" id="biomePair"></div>
+   <div class="seat-row">
+    <label style="--player:#69dfed">藍隊座號<input id="seat-0" type="number" min="1" max="50" value="1" inputmode="numeric" aria-label="藍隊座號"></label>
+    <label style="--player:#ffba75">橘隊座號<input id="seat-1" type="number" min="1" max="50" value="2" inputmode="numeric" aria-label="橘隊座號"></label>
+    <label style="--player:#a4e799">綠隊座號<input id="seat-2" type="number" min="1" max="50" value="3" inputmode="numeric" aria-label="綠隊座號"></label>
+   </div>
+   <div class="lobby-actions"><button class="primary" data-action="start">▶ 三人同時出發</button><button data-action="new-map">↻ 換一張地圖</button></div>
+   <div class="lobby-foot"><span id="lobbySettings"></span><span>每題 1 張求救卡 · 使用扣 10 秒</span></div>
+  </section>
+  <div id="countdown" class="countdown hidden" aria-live="assertive"><strong>3</strong><span>準備出發</span></div>
+  <div class="pause-overlay hidden" id="pauseOverlay"><div class="glass"><b>已暫停</b><p id="pauseReason">三台礦車與所有計時一起暫停</p><button class="primary" data-action="resume">▶ 繼續競速</button></div></div>
+  <div id="diagnostics" class="diagnostics hidden"></div>
+  <div class="engine-badge" id="engineStatus">3D 準備中</div>
+ </main>
+</div>
+<dialog id="teacherModal" class="modal teacher-modal">
+ <div class="modal-head"><div><div class="eyebrow">ONE SETTING FOR ALL THREE</div><h2>三區統一設定</h2><p>難度與作答時間統一套用下一場。開啟設定時，全場暫停。</p></div><button data-action="close" data-modal="teacherModal" aria-label="關閉設定">✕</button></div>
+ <div class="modal-body" id="teacherContent"></div>
+</dialog>
+<dialog id="helpModal" class="modal">
+ <div class="modal-head"><div><div class="eyebrow">HOW TO RIDE</div><h2>一起出發，答題加速。</h2></div><button data-action="close" data-modal="helpModal" aria-label="關閉玩法">✕</button></div>
+ <div class="modal-body help-copy">
+  <p>每條軌道都是 <b>5 公里</b>。三人共用風景，路線各有不同的轉彎與起伏；右上角可以進入全螢幕。</p>
+  <ol><li>設定三位座號，按「三人同時出發」。3 秒倒數後出現 GO，碼表開始計時。</li><li>車速在 5 秒內由 0 升至 60 km/h。出發第 8 秒出現第一題，作答時礦車持續前進。</li><li>答對的剩餘秒數加入加速時間。有加速時間時，10 秒內由 60 升至 80 km/h；加速時間歸零便逐漸降回 60。</li><li>每題可用 1 次求救卡，立即扣 10 秒；扣到 0 時，本題立即逾時。答對、答錯、逾時後都固定等 5 秒再出下一題。</li><li>通過 50% 時，主角會舉手。從後方超越領先者時，主角跳起轉圈並歡呼，被超車者會顯示「!!」2 秒。</li></ol>
+  <p>數字鍵盤可輸入負號、小數、刪除及切換欄位，按 <b>✓</b> 送出。選擇題先點選選項，再確認。上方大亮點是自己，小亮點是另外兩台車。</p>
+  <p class="note">每場約 4～5 分鐘。三人全數抵達後才能開始下一組。切換分頁會自動暫停，回來後按「繼續競速」。</p>
+ </div>
+</dialog>
+<dialog id="reviewModal" class="modal review-modal">
+ <div class="modal-head"><div><div class="eyebrow">EXPEDITION RESULTS</div><h2>這一趟，收穫了什麼？</h2></div><button data-action="close" data-modal="reviewModal" aria-label="關閉成績">✕</button></div><div class="modal-body" id="reviewContent"></div>
+</dialog>
+<div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="./src/app.js?v=1.0.0"></script>
+</body></html>

@@ -1,6 +1,6 @@
-import {FLIGHT_ART,artBounds,artParts,billboardModel} from './artwork.js?v=1.4.0';
-import {clamp,hash32} from './math.js?v=1.4.0';
-import {add,sub,scale,normalize,cross} from './world.js?v=1.4.0';
+import {FLIGHT_ART,artBounds,artParts,billboardModel} from './artwork.js?v=1.5.0';
+import {clamp,hash32} from './math.js?v=1.5.0';
+import {add,sub,scale,normalize,cross} from './world.js?v=1.5.0';
 
 export const ESCORT_TYPES=['birds','whales','dragons','witches','heroes','biplanes','butterflies','airships','paperplanes','cloudsheep','robots','jellyfish','kites'];
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};

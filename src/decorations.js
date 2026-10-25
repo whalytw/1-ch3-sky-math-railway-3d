@@ -1,8 +1,8 @@
-import {Geometry} from './geometry.js?v=1.4.0';
-import {random,clamp,hash32} from './math.js?v=1.4.0';
-import {artBounds} from './artwork.js?v=1.4.0';
-import {EscortDirector,ESCORT_TYPES} from './encounters.js?v=1.4.0';
-import {WORLD_END,WORLD_DRAW_END,sub,add} from './world.js?v=1.4.0';
+import {Geometry} from './geometry.js?v=1.5.0';
+import {random,clamp,hash32} from './math.js?v=1.5.0';
+import {artBounds} from './artwork.js?v=1.5.0';
+import {EscortDirector,ESCORT_TYPES} from './encounters.js?v=1.5.0';
+import {WORLD_END,WORLD_DRAW_END,sub,add,normalize} from './world.js?v=1.5.0';
 
 export const DECORATIONS=Object.freeze([
  ['snow','雪地飄雪','weather'],['fireballs','火山火球','sky'],['birds','飛過的鳥群','sky'],['balloons','繽紛熱氣球','sky'],['crowds','沿途加油人群','ground'],['windmills','旋轉風車','ground'],['whales','飛翔鯨魚','sky'],['dragons','巨大火龍','sky'],['witches','掃把巫婆','sky'],['heroes','披風飛行英雄','sky'],['biplanes','雙翼螺旋槳飛機','sky'],['tumbleweeds','滾動風滾草','ground'],['dinosaurs','漫步巨型恐龍','ground'],['rain','陣雨','weather'],['rainbows','雨後彩虹','sky'],
@@ -63,6 +63,7 @@ export function makeDecoration(id,variant=0){
   g.rod([-2,1.7,0],[-4,.8,0],.45,.45,c);
   if(variant%3===0){g.rod([1.7,2,0],[2.7,5.2,0],.66,.66,c);g.ellipsoid(3,5.1,0,.85,.45,.45,c,10,6)}
   else {g.ellipsoid(2.6,2.1,0,1,.7,.7,c,10,6);if(variant%3===1){g.ellipsoid(1.8,2.5,0,.25,1.2,1.3,c,10,5);for(const k of[-1,1])g.rod([2.8,2.5,k*.36],[3.8,3,k*.45],.16,.14,cream)}else for(let j=0;j<5;j++)g.cone(-1.7+j*.65,2.7,3.8,0,.44,gold,5)}
+  for(const side of[-1,1]){const hy=variant%3===0?5.2:2.35,hx=variant%3===0?3.38:3.05;g.ellipsoid(hx,hy,side*(variant%3===0?.37:.61),.15,.18,.075,'#f4edc9',10,6);g.ellipsoid(hx+.03,hy,side*(variant%3===0?.43:.68),.065,.085,.035,'#35454d',9,5)}
   for(const x of[-1.6,1.2])for(const side of[-1,1])g.rod([x,1.5,side*.7],[x+.2,.1,side*.8],.43,.43,c);
  }
  else if(id==='tumbleweeds'){
@@ -77,7 +78,7 @@ export function makeDecoration(id,variant=0){
  else if(id==='rainbows'){
   const colors=['#e88c83','#e8b074','#ebd382','#a9ca98','#86c8d5','#91a7cf','#b39acb'];for(let c=0;c<7;c++)for(let j=0;j<36;j++){const a=j*Math.PI/36,b=(j+1)*Math.PI/36,R=10-c*.3;g.quad([0,Math.sin(a)*R,Math.cos(a)*R],[0,Math.sin(b)*R,Math.cos(b)*R],[0,Math.sin(b)*(R-.28),Math.cos(b)*(R-.28)],[0,Math.sin(a)*(R-.28),Math.cos(a)*(R-.28)],colors[c])}
  }
- else if(id==='fireflies')for(let j=0;j<20;j++)g.ellipsoid((r()-.5)*5,r()*2,(r()-.5)*4,.045,.06,.045,'#f8e496',6,3);
+ else if(id==='fireflies')for(let j=0;j<20;j++)g.ellipsoid((r()-.5)*5,r()*2,(r()-.5)*4,.07,.085,.07,'#f8e496',6,3);
  else if(id==='butterflies')for(let j=0;j<7;j++){const x=(r()-.5)*4,y=r()*2,z=(r()-.5)*4;for(const side of[-1,1])g.ellipsoid(x,y,z+side*.22,.19,.035,.28,j%2?'#e7a5c8':'#f0c97e',8,4)}
  else if(id==='islands'){
   g.cone(0,0,-3,0,3,'#92978a',9);g.ellipsoid(0,.15,0,3,.45,2.5,'#9cbc82',12,6);for(let j=0;j<4;j++){g.rod([j-1.5,.3,0],[j-1.5,1,0],.06,.06,'#75955d');g.ellipsoid(j-1.5,1,0,.25,.2,.25,j%2?'#dfada9':'#f2d986',8,4)}
@@ -98,40 +99,49 @@ export function makeDecoration(id,variant=0){
  const data=g.array();if(!variant){const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];let radius=0;for(let i=0;i<data.length;i+=9){for(let k=0;k<3;k++){min[k]=Math.min(min[k],data[i+k]);max[k]=Math.max(max[k],data[i+k])}radius=Math.max(radius,Math.hypot(data[i],data[i+1],data[i+2]))}MODEL_BOUNDS.set(id,{min,max,radius})}return data;
 }
 export function safeFromRiders(point,radius,world,players){return players.every(p=>{const a=world.sample(p.lane,p.renderDistance??p.distance).point;return Math.hypot(...sub(point,[a[0],a[1]+1,a[2]]))>radius+4.2})}
-export function safeDecoration(item,world,players){if(item.id==='crowds')return crowdPositions(world,item).every(point=>safeFromRiders(point,1.5,world,players));if(item.id==='windmills')return players.every(p=>{const a=add(world.sample(p.lane,p.renderDistance??p.distance).point,[0,1,0]),q=item.point,dx=Math.max(0,Math.abs(a[0]-q[0])-2.8),dz=Math.max(0,Math.abs(a[2]-q[2])-1.3),dy=Math.max(0,q[1]-a[1],a[1]-q[1]-6);return Math.hypot(dx,dy,dz)>4.2});return safeFromRiders(item.point,item.radius,world,players)}
+export function safeDecoration(item,world,players){if(item.id==='tumbleweeds'&&players.some(p=>Math.abs(world.sample(p.lane,p.renderDistance??p.distance).point[0]-item.point[0])<18))return false;if(item.id==='crowds')return crowdPositions(world,item).every(point=>safeFromRiders(point,1.5,world,players));if(item.id==='windmills')return players.every(p=>{const a=add(world.sample(p.lane,p.renderDistance??p.distance).point,[0,1,0]),q=item.point,dx=Math.max(0,Math.abs(a[0]-q[0])-2.8),dz=Math.max(0,Math.abs(a[2]-q[2])-1.3),dy=Math.max(0,q[1]-a[1],a[1]-q[1]-6);return Math.hypot(dx,dy,dz)>4.2});return safeFromRiders(item.point,item.radius,world,players)}
+export function fadeWindow(x,start,end,ramp=1,exitRamp=ramp){const a=ramp?clamp((x-start)/ramp,0,1):1,b=exitRamp?clamp((end-x)/exitRamp,0,1):1;return a*a*(3-2*a)*b*b*(3-2*b)}
 export class DecorationSystem{
- constructor(world,settings={}){this.world=world;this.escorts=new EscortDirector(world,decorationBounds);this.setSettings(settings)}
+ constructor(world,settings={}){this.world=world;this.visible=new Map();this.lastClock=null;this.escorts=new EscortDirector(world,decorationBounds);this.setSettings(settings)}
  setSettings(settings){this.settings=settings;this.enabled=normalizeDecorations(settings.decorations);this.density=settings.decorationDensity||'medium'}
  instances(players,clock,quality='medium',views=[]){
-  const budget=Math.min(DENSITY_BUDGET[this.density]??16,quality==='low'?12:30);if(!budget)return[];
+  const budget=Math.min(DENSITY_BUDGET[this.density]??16,quality==='low'?12:30);if(!budget){this.visible.clear();return[]}const dt=this.lastClock===null||clock<this.lastClock?0:Math.min(.25,clock-this.lastClock);if(this.lastClock!==null&&clock<this.lastClock)this.visible.clear();this.lastClock=clock;
   const escorts=this.escorts.instances(players,clock,views,this.enabled,this.density);const w=this.world,positions=players.map(p=>w.sample(p.lane,p.renderDistance??p.distance).point),slots=new Set(),out=[];
   for(const p of positions)for(let i=Math.max(1,Math.floor((p[0]-100)/30));i<=Math.ceil((p[0]+110)/30)&&i*30<WORLD_DRAW_END-35;i++)slots.add(i);
   for(const slot of slots){
    const anchor=slot*30,r=random(w.seed+':decor:'+slot),theme=w.themeAtX(anchor).id;
    const pool=DECORATIONS.filter(d=>this.enabled[d.id]&&!ESCORT_TYPES.includes(d.id)&&(d.id!=='snow'||theme==='snow')&&(d.id!=='fireballs'||theme==='volcano'));
    if(!pool.length)continue;const def=pool[(slot+hash32(w.seed)%pool.length)%pool.length],id=def.id,side=r()>.5?1:-1,phase=r()*6.283,track=w.routes.map((_,i)=>w.pointAtX(i,anchor));
-   if((id==='rain'&&clock%40>15)||(id==='rainbows'&&clock%40<15))continue;
-   let x=anchor,z=(side<0?Math.min(...track.map(p=>p[2])):Math.max(...track.map(p=>p[2])))+side*(7+r()*6),y=w.terrainY(x,z),size=1,radius=3,motion=0,rotation=0,variant=0,source=null;
+   const weather=clock%40;let alpha=1;if(id==='rain')alpha=fadeWindow(weather,0,15,2);if(id==='rainbows')alpha=fadeWindow(weather,15,40,2);if(alpha===0)continue;
+   let x=anchor,z=(side<0?Math.min(...track.map(p=>p[2])):Math.max(...track.map(p=>p[2])))+side*(7+r()*6),y=w.terrainY(x,z),size=1,radius=3,motion=0,rotation=0,variant=0,source=null,forward=null;
    if(def.zone==='sky'){
     x+=Math.sin(clock*.15+phase)*8;y=track[(slot%3)][1]+7+r()*5+Math.sin(clock*.7+phase)*.6;z+=side*4;
     if(['whales','dragons','airships','islands'].includes(id)){size=1.35;radius=8;y+=2}
     if(['birds','dragons','butterflies','paperplanes'].includes(id))motion=1;
-    if(id==='fireballs'){source=[anchor,w.terrainY(anchor,z),z];const t=(clock*.3+phase)%1;x=anchor+Math.sin(phase)*t*7;y=source[1]+5.5+Math.sin(t*Math.PI)*13;radius=2}
-    if(id==='meteors'){x=anchor+((clock*6+phase*10)%24-12);y+=6;radius=6}
+    if(id==='fireballs'){source=[anchor,w.terrainY(anchor,z),z];const t=(clock*.3+phase)%1;x=anchor+Math.sin(phase)*t*7;y=source[1]+5.5+Math.sin(t*Math.PI)*13;radius=2;alpha*=fadeWindow(t,0,1,.12)}
+    if(id==='meteors'){const t=((clock*6+phase*10)%24)/24;x=anchor+t*24-12;y+=6;radius=6;alpha*=fadeWindow(t,0,1,.12)}
     if(id==='rainbows'){y=Math.max(...track.map(p=>p[1]))+8;radius=11}
     if(id==='jellyfish')motion=3;
    }else if(def.zone==='weather'){y=Math.max(...track.map(p=>p[1]))+7;z+=side*8;radius=20;motion=id==='snow'?4:5}
-   else if(id==='dinosaurs'){x+=Math.sin(clock*.2+phase)*4;y=w.terrainY(x,z);radius=6;variant=slot%3;motion=2}
+   else if(id==='dinosaurs'){const t=clock*.2+phase;x+=Math.sin(t)*4;z+=Math.cos(t)*.8;y=w.footingY(x,z,2.9);forward=normalize([Math.cos(t),0,-Math.sin(t)*.2]);radius=6;variant=slot%3;motion=2}
    else if(id==='tumbleweeds'){
     // It crosses the shared tracks only when every cart is safely away from the whole crossing.
     const t=(clock*.13+phase)%1;x=anchor;const lo=Math.min(...track.map(p=>p[2]))-12,hi=Math.max(...track.map(p=>p[2]))+12;z=lo+(hi-lo)*t;
-    if(positions.some(p=>Math.abs(p[0]-anchor)<18))continue;y=w.terrainY(x,z);radius=1.7;rotation=clock*2;
+    if(positions.some(p=>Math.abs(p[0]-anchor)<18))continue;y=w.footingY(x,z,.9)+.10;radius=1.7;rotation=clock*2;alpha*=fadeWindow(t,0,1,.12);
    }else if(id==='windmills'){radius=4;z=(side<0?track[0][2]:track[2][2])+side*6.5;y=w.footingY(x,z,.8)}
    else if(id==='crowds'){motion=6;z=(side<0?track[0][2]:track[2][2])+side*6.2;y=w.footingY(x,z,.25)}
-   else if(id==='fireflies'){motion=3;y+=1}
+   else if(id==='fireflies'){motion=7;y+=1}
    radius=Math.max(radius,DECORATION_RADII[id]*size);const point=[x,y,z];if(!safeDecoration({id,point,radius},w,players)||source&&!safeFromRiders(source,7,w,players))continue;
-   const nearest=Math.min(...positions.map(p=>Math.abs(p[0]-x)));out.push({id,point,size,radius,phase,motion,rotation,variant,nearest,side,source});
+   const nearest=Math.min(...positions.map(p=>Math.abs(p[0]-x)));if(id==='tumbleweeds')alpha*=fadeWindow(nearest,18,Infinity,15,0);out.push({id,key:`ambient:${slot}:${id}`,point,size,radius,phase,motion,rotation,variant,nearest,side,source,forward,sourceAlpha:fadeWindow(nearest,0,110,0,22),alpha:alpha*fadeWindow(nearest,0,110,0,22)});
   }
-  return [...escorts,...out.sort((a,b)=>a.nearest-b.nearest)].slice(0,budget);
+  // Reserve three companion places so a new flight cannot evict a visible roadside object.
+  const slotsAvailable=Math.max(0,budget-3),chosen=out.sort((a,b)=>a.nearest-b.nearest).slice(0,slotsAvailable),keys=new Set(chosen.map(v=>v.key)),candidates=new Map(out.map(v=>[v.key,v]));
+  for(const [key,state] of this.visible){
+   if(candidates.has(key))state.item=candidates.get(key);
+   state.opacity=keys.has(key)?Math.min(1,state.opacity+dt/1.1):Math.max(0,state.opacity-dt/.9);
+   if(!this.enabled[state.item.id]||!safeDecoration(state.item,w,players)||state.opacity===0&&!keys.has(key))this.visible.delete(key);
+  }
+  for(const item of chosen)if(!this.visible.has(item.key)&&this.visible.size<slotsAvailable)this.visible.set(item.key,{item,opacity:0});
+  const ambient=[...this.visible.values()].slice(0,slotsAvailable).map(s=>({...s.item,alpha:s.item.alpha*s.opacity,sourceAlpha:s.item.sourceAlpha*s.opacity}));return [...escorts,...ambient];
  }
 }

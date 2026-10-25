@@ -1,4 +1,4 @@
-import {random, clamp} from './math.js?v=1.4.0';
+import {random, clamp} from './math.js?v=1.5.0';
 export const METRES_PER_UNIT=1.6, ROUTE_METRES=5000, WORLD_END=4700/METRES_PER_UNIT;
 export const RUNOUT_METRES=600, WORLD_DRAW_END=WORLD_END+RUNOUT_METRES/METRES_PER_UNIT;
 export const TERRAIN_STEP=17/16, TRACK_SHOULDER=1.42;

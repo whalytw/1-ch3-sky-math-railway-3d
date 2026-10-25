@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {SharedWorld} from '../src/world.js';
 import {Race,defaultSettings} from '../src/race.js';
-import {artworkBank,ART_SHEETS} from '../src/artwork.js?v=1.4.0';
+import {artworkBank,ART_SHEETS} from '../src/artwork.js?v=1.5.0';
 import {SharedRenderer} from '../src/renderer.js';
 // Verify the actual JavaScript renderer's WebGL protocol and frame pacing when CI has no browser WebGL.
 class FakeGL{
@@ -23,5 +23,5 @@ renderer.destroy();assert.equal(gl.buffers.size,0);assert.equal(gl.vaos.size,0);
 console.log('PASS renderer: every 60 Hz frame, shared cached VAOs, no per-frame terrain uploads, jet and full-leg transforms, occlusion-only stencil outline protocol, front finish camera, resource cleanup and cached panorama textures');
 
 const art=artworkBank();for(const key of Object.keys(ART_SHEETS))art.images.set(key,{width:1254,height:1254});
-const glArt=new FakeGL(),artCanvas={...canvas,getContext:()=>glArt},withArt=new SharedRenderer(artCanvas,board,windows);withArt.setWorld(world);await withArt.artReady;assert.equal(glArt.textures.size,7,'two landscapes and all five real art atlases');
+const glArt=new FakeGL(),artCanvas={...canvas,getContext:()=>glArt},withArt=new SharedRenderer(artCanvas,board,windows);withArt.setWorld(world);await withArt.artReady;assert.equal(glArt.textures.size,2+Object.keys(ART_SHEETS).length,'two landscapes plus all independent art sheets');
 const artRace=new Race(defaultSettings(),world.seed);artRace.start();artRace.step(12);const before=glArt.textureUploads;for(let j=0;j<180;j++){artRace.step(1/60);withArt.frame(artRace.players,2000+j*1000/60,true,12+j/60)}assert.ok(glArt.artDraws>5,'the actual renderer must sample the sprite atlases, not just package unused images');assert.equal(glArt.textureUploads,before,'art textures must remain cached during flight');assert.equal(glArt.uniforms.uSprite,0);assert.ok(glArt.depthWrite);withArt.destroy();assert.equal(glArt.textures.size,0);art.images.clear();console.log('PASS artwork WebGL: atlas sampling during actual frames, cached uploads, blend/depth state reset and complete texture cleanup');

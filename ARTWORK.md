@@ -1,31 +1,88 @@
-# V1.4 遊戲角色美術
+# V1.5 美術與動畫來源
 
-本版五張 PNG 是本次以使用者提供的遊戲截圖為參考，新生成並實際放入遊戲的原創角色圖集。不是成品預覽圖；`src/artwork.js` 負責圖集、視角與拍翼，`src/renderer.js` 在共用世界中繪製。未使用 Minecraft 人物、皮膚或其他現成遊戲角色資產。
+遊戲實際使用 15 張透明 RGBA 圖片：13 張 `single-*.png` 獨立素材，加上女巫、鯨魚各 1 張四視角素材。所有圖片均由本次／前次對話的圖像生成功能製作；程式、角色造型和動作未使用 Minecraft 皮膚或第三方遊戲資產。
 
-| 素材 | 圖集 | 用途 |
-|---|---|---|
-| cute-witch.png | 2 × 2 | 跨坐掃把的女巫，四個斜視角 |
-| cute-birds.png | 4 × 2 | 四個斜視角 × 上下拍翼；三隻獨立飛鳥 |
-| cute-whale.png | 2 × 2 | 微笑鯨魚，四個斜視角 |
-| cute-dragon.png | 4 × 2 | 四個斜視角 × 上下拍翼；橘色火龍 |
-| cute-cast.png | 4 × 3 | 雙翼飛機、原創披風英雄、機器人、飛船、雲朵綿羊、水母、彩蝶、紙飛機、風箏、熱氣球、浮空花園、螢火蟲 |
+舊 `cute-cast.png`、`cute-birds.png`、`cute-dragon.png` 已從本版移除。獨立圖片不裁切成相鄰角色格子。鳥和火龍只有單一對翅膀；GLSL 網格連續變形取代上下姿勢透明混合。動畫程式在 `src/animation.js`，資產索引在 `src/artwork.js`。
 
-所有圖檔保留透明背景。圖片原檔直接納入專案，不對角色素材另作程式去背、拼圖或重繪。四視角圖依鏡頭與前進方向切換；部分配角使用後側視圖並依左右方向鏡射。實際 3D 幾何使用輕量透明平面，而非完整體積的模型。
+## 新獨立素材
 
-## 生成提示詞
+最先四張的製作規格摘要：
 
-以下保留本次實際送出的五組完整提示詞，便於之後維持美術風格。每組均使用使用者的遊戲截圖作參考，要求輸出可直接載入遊戲的透明圖集。
+|檔案|規格|
+|---|---|
+|single-jellyfish.png|單隻淡紫與粉色水母，透明背景；完整傘部及分開的長觸手，無其他角色。|
+|single-butterfly.png|單隻藍／青色蝴蝶，垂直置中的身體與對稱張開的雙翼，供翅根變形。|
+|single-hero.png|原創青綠服裝與橘披風英雄，後左斜視角，朝右上飛行，無其他角色片段。|
+|single-biplane.png|黃色雙翼飛機、駕駛與機鼻輪轂，後左斜視角，省略螺旋槳葉片以交由程式旋轉。|
+
+以下九張保留當時的共同風格提示與各張提示；`ref` 是生成時參考的舊美術，不表示遊戲仍載入該舊檔。
+
+共同提示：
+
+```text
+Use the attached image only as an art-style reference. Create ONE isolated production game asset on a truly transparent RGBA background, square canvas. Polished rounded 3D-animation illustration, charming family-friendly fantasy art, warm soft material shading. Absolutely NO sprite sheet, NO grid, NO neighboring subjects, NO scraps, NO labels, NO text, NO floor shadow. Fit the entire subject in the central 76% with generous empty transparent edges. 
+```
+
+### single-bird.png
+
+```text
+ONE cute teal-blue and cream swallow viewed DIRECTLY FROM BEHIND and slightly above, flying AWAY from camera toward TOP of image. Its body, rounded head, and two long forked tail feathers are aligned on the exact vertical center axis: head at y=35%, tail tip at y=78%. EXACTLY TWO wings spread horizontally to left and right in a neutral T pose, feathers angled gently back. Wing shoulders meet the central body at x=44% and x=56%, y=48%. Wings have a clearly readable root and beautifully layered teal/cream feathers. No raised second pair of wings, no motion blur. This will be continuously animated with a two-shoulder rig, so keep the center body narrow and the left/right wings clearly outside it.
+```
+
+### single-robot.png
+
+```text
+ONE cute cream-and-teal round postal robot with a brown mail satchel, viewed rear-left three-quarter, flying horizontally toward upper RIGHT. Two jet nozzles at lower-left back emit distinct orange-gold flames trailing toward lower LEFT. Metallic body, friendly round head, antenna. Complete single robot and its own flames only.
+```
+
+### single-airship.png
+
+```text
+ONE cute cream balloon steampunk airship, wooden gondola, teal fabric fins, golden ropes and warm round windows, viewed rear-left three-quarter, heading upper RIGHT. A short chimney at the rear left, but NO smoke in the image (animated steam added in-game). Single integrated vehicle. Small motor hub at the back with NO propeller blades (animated propeller added in-game).
+```
+
+### single-cloudsheep.png
+
+```text
+ONE cute fluffy cloud sheep with cream curly wool, tiny chocolate face, curved golden horns, four small clearly separated dangling brown hooves. Rear-left three-quarter view flying toward upper RIGHT. Body in upper half, legs below, ample space around entire sheep. No cloud platform, no background cloud, no other sheep.
+```
+
+### single-paperplane.png
+
+```text
+ONE cream-and-gold folded paper airplane, viewed from behind and above, flying toward upper RIGHT. Beautiful paper folds, two swept triangular wings. No speed lines, no smoke, no other planes.
+```
+
+### single-kite.png
+
+```text
+ONE colorful classic diamond kite with a red and gold fabric sail, wooden cross frame, a central bow and a long curving ribbon tail with three small bows. Kite sail in upper half, entire wavy tail in lower half. All completely visible with empty transparent margin. Rear three-quarter angle with face of kite clearly readable. No other kites.
+```
+
+### single-balloon.png
+
+```text
+ONE adorable hot air balloon with a red and cream striped round envelope, golden ropes, a small wicker basket and a cute helmeted traveler inside. Rear-left three-quarter, drifting toward upper RIGHT. All ropes and basket clearly visible. Small bright burner glow above basket. Empty transparent margin around whole balloon, nothing else.
+```
+
+### single-island.png
+
+```text
+ONE small whimsical floating garden island, a rounded grass-covered rock, one pink blossoming tree, a tiny wooden fence and ONE narrow blue waterfall pouring from center-right edge down below the rock. The entire tree, island and waterfall fit inside the image with transparent margins. No flying birds, no other islands, no cloud, no surrounding landscape.
+```
+
+### single-dragon.png
+
+```text
+ONE cute orange baby dragon flying AWAY toward the TOP of the image, viewed DIRECTLY from behind and slightly above. Symmetric wing rig reference pose: narrow plump orange torso and round head on exact vertical center axis, head at y=32%, feet at y=65%, long tail extending down to y=83%. EXACTLY TWO bat-like gold membrane wings spread horizontally left and right, roots at x=43%,57% and y=45%, tips at x=15%,85%,y=32%. Horns and head readable, folded little legs under torso. Soft adorable sculpted material matching reference. No overlapping duplicate wings, no motion blur. This single image will be rigged for continuous flapping.
+```
+
+## 沿用且重新檢查的素材
 
 ### cute-witch.png
 
 ```text
 Use case: precise-object-edit / production game sprite. Edit target: the provided exact screenshot, specifically its badly modeled purple flying witch. Completely rebuild that witch into an appealing original cozy storybook 3D character and extract her into a TRANSPARENT PRODUCTION SPRITE ATLAS that will actually be loaded in the game. Remove all screenshot UI, tracks and landscape in the output. One consistent adorable young adult witch, rounded face with expressive eyes, warm smile, purple pointed hat with bent tip, chestnut bob hair, plum dress, short flowing cape, brown ankle boots, warm wooden broom with golden bristles. CRITICAL RIDING ANATOMY: she SITS ASTRIDE the broom handle like riding a horse, broom between both thighs, left and right knees on opposite sides, both lower legs and boots hang BELOW the broom. Lean torso a little forward, both hands gripping the broom handle in front of her; never standing on the broom or balancing on it. No cheering arms, no primitive stick limbs. A polished rounded 3D animation-film game render with soft warm lighting, subtle material textures and clean silhouette, matching a cute illustrated fantasy racing game. Output a precise 2x2 equal-cell atlas, ideally 2048 square, four images of the SAME witch and pose at the SAME size, each centered with generous transparent margins, no shadows outside the subject: top-left camera rear-left three-quarter (see her back and left side, she flies AWAY from viewer toward upper right); top-right camera rear-right three-quarter (back and right side, flies AWAY toward upper left); bottom-left front-left three-quarter (face and left side); bottom-right front-right three-quarter (face and right side). Each cell contains the entire witch, both dangling boots, hat tip, full broom and bristles, with no cropping and no overlap across cells. The two upper cells must clearly show flight in the same forward/away direction as a following minecart camera. Truly transparent background, no checkerboard painted into image, no frame lines, no text, no watermark.
-```
-
-### cute-birds.png
-
-```text
-Use case: precise-object-edit / production animated game sprite. Edit target: the provided exact screenshot, specifically the strange flat objects in front of the middle minecart that were meant to be birds. Completely redesign ONE charming little teal-and-cream swallow into an appealing original rounded 3D animated-film game bird, and extract it as a TRANSPARENT PRODUCTION ANIMATION ATLAS. Remove all screenshot UI and scenery. The bird has a clear rounded head, glossy small black eyes, tiny golden beak, cream belly, rich blue/teal back, graceful rounded feathered wings, a two-feather forked tail, and small tucked feet. Friendly and believable, no flat triangle scraps, no disconnected parts. Polished warm soft-lit 3D storybook render, clean silhouette. Precise 4-column by 2-row equal-cell atlas, ideally 2048x1024: columns are four views of the SAME bird: 1 rear-left three-quarter flying AWAY toward upper right, 2 rear-right three-quarter flying AWAY toward upper left, 3 front-left three-quarter, 4 front-right three-quarter. Top row shows WINGS RAISED at the top of an upstroke; bottom row shows the same poses with WINGS LOWERED at the bottom of a downstroke. Keep identity, head, body position, camera view, lighting and scale perfectly consistent between the two rows; only wing pose changes. Every cell contains the entire single bird with wings, tail, head and beak, centered at the same scale with transparent margins, no cropping, no overlap between cells. No flock baked in; the game will place three individual birds. Truly transparent background, no painted checkerboard, no ground shadows, no text, no grid lines, no watermark.
 ```
 
 ### cute-whale.png
@@ -34,16 +91,7 @@ Use case: precise-object-edit / production animated game sprite. Edit target: th
 Use case: precise-object-edit / production game art. The provided exact screenshot is the edit source for replacing its crude flying scenery. Output only the rebuilt transparent production sprite atlas; remove all game UI and environment. Original adorable rounded 3D animated-film fantasy game style, soft warm lighting, subtly textured materials, clean expressive silhouettes, consistent identity and scale, each subject entirely contained within its equal cell with transparent padding, no clipping, no baked shadows, no text, no borders, no watermark, no painted checkerboard. Create ONE charming sky-blue flying whale with cream belly, happy expressive eyes, friendly curved smile, rounded pectoral fins, broad sculpted tail flukes and tiny sparkling water puff from its blowhole. A real coherent animal body, no loose geometric pieces. Precise 2x2 atlas of four views: top-left rear-left three-quarter (swimming/flying AWAY toward upper right), top-right rear-right three-quarter (AWAY toward upper left), bottom-left front-left three-quarter (face visible), bottom-right front-right three-quarter. Same whale and gentle swimming pose, show entire tail, both fins and body in each cell, no scenery or extra whales. Ideally 1536 square.
 ```
 
-### cute-dragon.png
 
-```text
-Use case: precise-object-edit / production game art. The provided exact screenshot is the edit source for replacing its crude flying scenery. Output only the rebuilt transparent production sprite atlas; remove all game UI and environment. Original adorable rounded 3D animated-film fantasy game style, soft warm lighting, subtly textured materials, clean expressive silhouettes, consistent identity and scale, each subject entirely contained within its equal cell with transparent padding, no clipping, no baked shadows, no text, no borders, no watermark, no painted checkerboard. Create ONE adorable orange-red young flying fire dragon with warm cream belly, rounded face, large friendly eyes, small curved horns, sturdy torso, two small forearms, two tucked hind legs, long expressive tail and broad bat wings with golden-orange membranes and clear connected wing fingers. Cute confident companion, no aggression. Precise 4-column x 2-row equal-cell atlas: columns 1 rear-left three-quarter flying AWAY upper right, 2 rear-right three-quarter flying AWAY upper left, 3 front-left three-quarter, 4 front-right three-quarter. Top row WINGS RAISED, bottom row SAME views with WINGS LOWERED; keep head, body, tail, size and camera consistent, only wings change. Full wings and tail within every cell. Ideally 2048x1024.
-```
+## 實作限制
 
-### cute-cast.png
-
-```text
-Use case: precise-object-edit / production game art. The provided exact screenshot is the edit source for replacing its crude flying scenery. Output only the rebuilt transparent production sprite atlas; remove all game UI and environment. Original adorable rounded 3D animated-film fantasy game style, soft warm lighting, subtly textured materials, clean expressive silhouettes, consistent identity and scale, each subject entirely contained within its equal cell with transparent padding, no clipping, no baked shadows, no text, no borders, no watermark, no painted checkerboard. Make a precise 4-column by 3-row atlas of TWELVE distinct cute original flight props, one subject per cell. All are rendered from a rear-left three-quarter following-camera view, traveling AWAY from the viewer toward the upper right (same forward direction as a minecart), with clear side details, uniformly readable scale. Row1 left to right: 1 rounded golden vintage BIPLANE with two pairs of wings, pilot cockpit and front propeller; 2 original teal-suited CAPED HERO in a genuine horizontal forward flying pose, one arm forward, legs trailing, orange cape flowing behind (no trademarks or logos); 3 smiling brass-and-teal MAIL ROBOT with short limbs, mail satchel and small twin jetpack flames, leaning forward in flight; 4 cozy cream-and-gold STEAMPUNK AIRSHIP with oval envelope and detailed wooden gondola. Row2: 1 fluffy CLOUD SHEEP with a friendly sheep face and four small dangling hooves; 2 luminous pastel lavender SKY JELLYFISH with a smooth dome and gently curling connected tentacles; 3 a small coherent group of three colorful BUTTERFLIES with visible bodies and soft wing patterns; 4 a formation of three clean cream-and-gold folded PAPER PLANES. Row3: 1 a short train of four colorful fabric KITES with bows and connected tails; 2 one cheerful red-and-gold HOT AIR BALLOON with woven basket and ropes; 3 a small FLOATING GARDEN ISLAND with grass, flowering tree, tiny waterfall and stone underside; 4 a small cluster of glowing golden FIREFLIES with visible round insect bodies and tiny transparent wings. Charming polished 3D storybook game art, not primitive geometry. No shared scenery, no labels. Entire subject and accessories in each cell, generous transparent margins. Ideally 2048x1536.
-```
-
-
+飛行美術是置於共用 3D 世界中的可變形透明網格，依距離縮放並接受深度遮擋。它保留插畫細節，並非完整可環繞的體積模型。女巫與鯨魚保留四個視角，其餘單張素材以跟隨鏡頭的角度呈現。

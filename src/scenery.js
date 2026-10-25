@@ -1,6 +1,6 @@
-import {Geometry} from './geometry.js?v=1.4.0';
-import {WORLD_END,WORLD_DRAW_END,TERRAIN_STEP,normalize,sub,add,scale} from './world.js?v=1.4.0';
-import {random,clamp} from './math.js?v=1.4.0';
+import {Geometry} from './geometry.js?v=1.5.0';
+import {WORLD_END,WORLD_DRAW_END,TERRAIN_STEP,normalize,sub,add,scale} from './world.js?v=1.5.0';
+import {random,clamp} from './math.js?v=1.5.0';
 export const CHUNK_SIZE=17;
 const offset=(p,n,k)=>add(p,scale(n,k));
 function tree(g,x,y,z,s,t,snow=false){

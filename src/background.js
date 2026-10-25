@@ -1,4 +1,4 @@
-import {random,hash32} from './math.js?v=1.4.0';
+import {random,hash32} from './math.js?v=1.5.0';
 export const BACKGROUNDS=Object.freeze([
  ['auto','每場隨機'],['sunset','晚霞與落日'],['alpine','雄偉群山'],['fuji','富士山與薄雲'],['castle','湖畔城堡'],['aurora','極光與星空'],['sea','海上群島'],['spires','沙漠古城'],['planet','星環行星'],['cloudpalace','雲端宮殿']
 ].map(([id,label])=>({id,label})));

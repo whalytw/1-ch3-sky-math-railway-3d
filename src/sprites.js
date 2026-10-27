@@ -1,4 +1,4 @@
-import {normalize,cross,sub} from './world.js?v=1.5.0';
+import {normalize,cross,sub} from './world.js?v=1.6.0';
 // Compatibility mode reuses the real original 3D meshes as cached painted sprites.
 // Rasterize once when a map/seat changes, never rebuild triangles during gameplay.
 export function makeSprite(data,front=false){

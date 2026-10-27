@@ -1,36 +1,25 @@
 import assert from 'node:assert/strict';
-import {SharedWorld,normalize,sub} from '../src/world.js';
-import {EscortDirector,projectedBounds} from '../src/encounters.js';
-import {decorationBounds,defaultDecorations,makeDecoration} from '../src/decorations.js';
-import {cameraFor,fieldOfView,actorTransforms,sceneView} from '../src/renderer.js';
-import {matMul,perspective,lookAt} from '../src/geometry.js';
-import {ART_SHEETS,FLIGHT_ART,artParts,artPose,artBounds} from '../src/artwork.js';
+import {SharedWorld,sub,normalize} from '../src/world.js';
+import {FlightDirector,FAST_TYPES} from '../src/flight.js';
+import {defaultDecorations} from '../src/decorations.js';
+import {artPose,artParts,FLIGHT_ART,ART_SHEETS} from '../src/artwork.js';
 import {readFileSync} from 'node:fs';
-const dot=(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0),viewFor=(w,p,W=630,H=835)=>{const camera=cameraFor(w,p),vp=matMul(perspective(fieldOfView(p),W/H,.1,140),lookAt(camera.eye,camera.target,[0,1,0])),renderer={windows:[0,1,2].map(()=>({getBoundingClientRect:()=>({left:0,top:0}),querySelectorAll:()=>[{getBoundingClientRect:()=>({left:0,right:W,top:0,bottom:H*.38,width:W,height:H*.38})},{getBoundingClientRect:()=>({left:W*.70,right:W,top:H*.65,bottom:H,width:W*.30,height:H*.35})}]}))};return sceneView(renderer,p.lane,p,camera,vp,{cssW:W,cssH:H},actorTransforms(w,p))};
-let frames=0,flights=0,departures=0;const types=new Set();
-for(const id of['witches','birds','whales','dragons','heroes','biplanes','jellyfish']){
- const world=new SharedWorld('continuous-'+id),director=new EscortDirector(world,decorationBounds),enabled=Object.fromEntries(Object.keys(defaultDecorations()).map(k=>[k,k===id])),previous=new Map(),first=new Map(),last=new Map();
- const players=[0,1,2].map(lane=>({lane,distance:700+lane*80,renderDistance:700+lane*80,speed:60,finishTime:null,jump:0,wave:0,phase:'question',questionNumber:1,question:{mode:'number'}}));
- for(let step=0;step<=45*60;step++){
-  const clock=step/60;players.forEach((p,i)=>{p.distance=700+i*80+clock*60/3.6;p.renderDistance=p.distance});
-  const views=players.map(p=>viewFor(world,p)),items=director.instances(players,clock,views,enabled,'medium');
-  for(const item of items){assert.ok(item.point.every(Number.isFinite));assert.ok(item.alpha>=0&&item.alpha<=1);assert.equal(item.id,id);types.add(item.id);const heading=world.sample(item.ownerLane,players[item.ownerLane].distance).forward;assert.ok(dot(normalize([item.forward[0],0,item.forward[2]]),normalize([heading[0],0,heading[2]]))>.995,'companion must face the same forward heading as its cart');
-   const old=previous.get(item.encounterKey);if(!first.has(item.encounterKey)){first.set(item.encounterKey,clock);assert.equal(item.alpha,0);flights++}
-   if(old){assert.ok(Math.abs(item.alpha-old.alpha)<.08,'no instant opacity change');assert.ok(Math.abs(item.size-old.size)<1e-10,'no per-frame resizing or re-planning');const travelled=sub(world.sample(item.ownerLane,players[item.ownerLane].distance).point,old.car),relative=sub(sub(item.point,old.point),travelled);assert.ok(Math.hypot(...relative)<.65,'no position teleport')}
-   assert.ok(projectedBounds(views[item.ownerLane],item,artBounds(item.id)));previous.set(item.encounterKey,{alpha:item.alpha,size:item.size,point:[...item.point],car:world.sample(item.ownerLane,players[item.ownerLane].distance).point});last.set(item.encounterKey,clock);frames++;
-  }
+import {decorationMatrix,localPoint} from '../src/renderer.js';
+const dot=(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0);
+for(const forward of [[1,0,0],[0,0,1],[0,0,-1],normalize([.8,-.2,.6])]){const o={id:'paperplanes',point:[4,9,2],forward,size:1,bank:.17},m=decorationMatrix(o),nose=localPoint(m,[1.6,0,0]);assert.ok(dot(normalize(sub(nose,o.point)),forward)>.999999,'3D paper nose follows actual flight direction even when banked')}
+let frames=0,events=0;
+for(const id of FAST_TYPES){const w=new SharedWorld('flight-v16-'+id),d=new FlightDirector(w);d.unicornPresent=true;const enabled=Object.fromEntries(Object.keys(defaultDecorations()).map(k=>[k,k===id])),p=[0,1,2].map(lane=>({lane,distance:400+lane*50,speed:60,finishTime:null})),old=new Map(),phases=new Set();
+ for(let k=0;k<60*55;k++){const t=k/60;p.forEach((p,i)=>p.distance=400+i*50+t*60/3.6);const items=d.instances(p,t,[],enabled,'rich',{backgroundStyle:'aurora'});assert.equal(new Set(items.map(o=>o.key)).size,items.length,'one shared identity, no view copies');
+  for(const o of items){if(!o.escort)continue;assert.equal(o.ownerLane,null);assert.ok(o.point.every(Number.isFinite));const prev=old.get(o.key);if(prev){const delta=sub(o.point,prev.point);assert.ok(Math.hypot(...delta)<3,'bounded interframe displacement');if(Math.hypot(...delta)>.001)assert.ok(dot(normalize(delta),o.forward)>.999,'heading follows actual world velocity');assert.ok(Math.abs(o.alpha-prev.alpha)<.04)}else events++;old.set(o.key,{point:[...o.point],alpha:o.alpha});phases.add(o.flightPhase);frames++;}
  }
- for(const event of director.history.filter(e=>e.type==='gone')){assert.equal(event.lastAlpha,0);assert.ok(last.get(event.key)-first.get(event.key)>5,`${id} ${event.key} must persist: ${JSON.stringify(director.history.filter(e=>e.key===event.key))}`);departures++}
+ assert.ok(frames>0);assert.ok(phases.has(id==='ufos'?'hovering':'crossing')||phases.has('cruising'),id+' has natural phases');assert.ok(phases.has('departing')||phases.has('crossing'));
 }
-assert.equal(types.size,7);assert.ok(flights>=15);assert.ok(departures>=10);
-// A newly opened question/keyboard must retire an existing companion gradually.
-{
- const world=new SharedWorld('continuous-witches'),director=new EscortDirector(world,decorationBounds),players=[0,1,2].map(lane=>({lane,distance:700+lane*80,renderDistance:700+lane*80,speed:60,finishTime:null,jump:0,wave:0,phase:'question',questionNumber:1,question:{mode:'number'}}));let key=null,changeAt=Infinity,lastAlpha=0,checked=0;
- for(let frame=0;frame<=20*60;frame++){const clock=frame/60;players.forEach((p,i)=>{p.distance=700+i*80+clock*60/3.6;p.renderDistance=p.distance});const view=viewFor(world,players[0]);if(clock>=changeAt)view.avoid.push({left:0,right:view.W,top:0,bottom:view.H});const items=director.instances(players,clock,[view],{witches:true},'medium'),item=items.find(x=>x.encounterKey===key)||items[0];if(!key&&item){key=item.encounterKey;changeAt=clock+4}if(item&&item.encounterKey===key){assert.ok(Math.abs(item.alpha-lastAlpha)<.08,'question layout must not pop the companion away');lastAlpha=item.alpha;if(clock>=changeAt)checked++}}
- const exit=director.history.find(e=>e.key===key&&e.type==='gone'),depart=director.history.find(e=>e.key===key&&e.type==='depart');assert.ok(checked>90,'a changed layout must retain visible exit frames');assert.equal(depart.reason,'layout');assert.ok(exit.clock-depart.clock>=1.8);assert.equal(exit.lastAlpha,0);
+for(const id of ['jellyfish','kites','balloons','paperplanes','whales','cloudsheep','butterflies']){const w=new SharedWorld('local-'+id),d=new FlightDirector(w),en={[id]:true},p=[0,1,2].map(lane=>({lane,distance:700,speed:60,finishTime:null}));let a=d.instances(p,20,[],en,'medium'),b=d.instances(p,21,[],en,'medium');assert.ok(a.length);for(const x of a){const y=b.find(z=>z.key===x.key);if(y)assert.ok(Math.hypot(...sub(y.point,x.point))<6,id+' cannot match cart speed');if(id==='kites')assert.ok(x.anchor);if(['paperplanes','kites'].includes(id))assert.equal(x.count,1)}
+ const moved=p.map(x=>({...x,distance:720})),c=d.instances(moved,21,[],en,'medium');for(const y of b){const z=c.find(x=>x.key===y.key);if(z)assert.deepEqual(z.point,y.point,'moving the cart does not transport local creatures')}
 }
-for(const [key,sheet]of Object.entries(ART_SHEETS)){const bytes=readFileSync(new URL('../assets/'+sheet.file,import.meta.url));assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.equal(bytes[25],6,'production atlas must have an alpha channel');assert.ok(bytes.length>100000);assert.ok(bytes.readUInt32BE(16)>=1000)}
-const states=new Map(),item={id:'witches',point:[0,0,0],forward:[1,0,0],phase:0,size:1};const rear=artPose('witches','a',item,{lane:0,camera:{eye:[-5,2,-3]}},0,states),front=artPose('witches','a',item,{lane:0,camera:{eye:[5,2,-3]}},.01,states);assert.deepEqual(rear.from,[0,0]);assert.equal(front.mix,0);assert.deepEqual(front.to,[0,0]);const turned=artPose('witches','a',item,{lane:0,camera:{eye:[5,2,-3]}},.38,states);assert.deepEqual(turned.from,[0,1]);assert.deepEqual(turned.from,turned.to);
-const birds=artParts({...item,id:'birds'},1);assert.equal(birds.length,3);assert.equal(new Set(birds.map(b=>b.phase)).size,3);assert.equal(Object.keys(FLIGHT_ART).length,15);
-const witch=makeDecoration('witches');let feet=Infinity,hat=-Infinity;for(let i=1;i<witch.length;i+=9){feet=Math.min(feet,witch[i]);hat=Math.max(hat,witch[i])}assert.ok(feet<-.85&&hat>1.6,'witch fallback must have hanging legs below the broom and a hat');
-console.log(`PASS V1.5: ${frames} continuous companion frames, ${flights} identities, ${departures} smooth exits, cart-aligned headings, no teleports/alpha pops, gradual exit after question layout change, 15 RGBA sheets, 15 articulated subjects, independent bird phases and single-pose turns`);
+const w=new SharedWorld('far-island'),d=new FlightDirector(w),p=[0,1,2].map(lane=>({lane,distance:0,speed:60,finishTime:null}));let previous;
+for(const distance of [0,1000,2500,4000,5000]){p.forEach(x=>x.distance=distance);const island=d.instances(p,distance/20,[],{islands:true},'medium')[0];if(previous)assert.deepEqual(island.point,previous);previous=island.point;for(const x of p)assert.ok(Math.hypot(...sub(island.point,w.sample(x.lane,distance).point))>24000)}
+const camera={eye:[-10,3,0],target:[10,3,0]};for(const id of Object.keys(FLIGHT_ART).filter(id=>FLIGHT_ART[id].multi)){for(const side of[-1,1]){const pose=artPose(id,id,{point:[0,3,0],forward:[0,0,side],phase:0}, {lane:0,camera},0,new Map());assert.equal(pose.index,1,'lateral movement requires side profile');assert.equal(pose.flip,side<0)}const rear=artPose(id,id,{point:[0,3,0],forward:[1,0,0]}, {lane:0,camera},0,new Map()),front=artPose(id,id,{point:[0,3,0],forward:[-1,0,0]}, {lane:0,camera},0,new Map());assert.equal(rear.index,0);assert.equal(front.index,2)}
+assert.equal(artParts({id:'kites',point:[0,4,0],size:1,count:9},0).length,1);assert.equal(artParts({id:'birds',point:[0,4,0],size:1,count:2},0).length,2);
+for(const sheet of Object.values(ART_SHEETS)){const b=readFileSync(new URL('../assets/'+sheet.file,import.meta.url));assert.equal(b[25],6);assert.ok(b.readUInt32BE(16)>=1024)}
+console.log(`PASS V1.6: ${frames} motion frames, ${events} shared encounters, velocity-aligned headings, four directional views, single kites, local drift independent of carts and unreachable island`);

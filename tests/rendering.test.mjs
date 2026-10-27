@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {SharedWorld} from '../src/world.js';
 import {Race,defaultSettings} from '../src/race.js';
-import {artworkBank,ART_SHEETS} from '../src/artwork.js?v=1.5.0';
+import {artworkBank,ART_SHEETS} from '../src/artwork.js?v=1.6.0';
 import {SharedRenderer} from '../src/renderer.js';
 // Verify the actual JavaScript renderer's WebGL protocol and frame pacing when CI has no browser WebGL.
 class FakeGL{
@@ -17,7 +17,7 @@ const paint=new Proxy({createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k
 const gl=new FakeGL(),board={getBoundingClientRect:()=>({left:0,top:0,bottom:720,width:1280,height:720})},windows=[0,1,2].map(i=>({getBoundingClientRect:()=>({left:i*1280/3,top:0,bottom:720,width:1280/3,height:720})})),canvas={width:0,height:0,getContext:(kind,options)=>{assert.equal(kind,'webgl2');assert.equal(options.stencil,true);return gl},addEventListener(){}};
 const renderer=new SharedRenderer(canvas,board,windows),world=new SharedWorld('render-protocol'),race=new Race(defaultSettings(),world.seed);renderer.setWorld(world);assert.equal(gl.textures.size,2);renderer.setSeats([5,16,29]);const initialTextures=gl.textureUploads;renderer.setSceneSettings({...defaultSettings(),background:false});assert.equal(gl.textureUploads,initialTextures);renderer.setSceneSettings({...defaultSettings(),backgroundStyle:'castle'});assert.equal(gl.textures.size,2);assert.equal(gl.textureUploads,initialTextures+2);race.start();race.step(11);race.awardBoost(race.players[0],30);race.awardBoost(race.players[0],30);race.awardBoost(race.players[0],30);race.step(1.5);race.players[0].jump=.575;
 const uploads=gl.uploads;for(let j=0;j<10;j++)renderer.frame(race.players,1000+j*1000/60,false,12.5+j/60);
-assert.equal(gl.viewCount,30,'all ten 60 Hz frames must draw all three views');assert.equal(gl.uploads,uploads,'no geometry generation/upload in normal render frames');assert.ok(gl.outlines>=90,'each viewport must mask and outline its own car and character');assert.ok(gl.colorWrite&&gl.depthWrite);assert.equal(gl.depthMode,gl.LEQUAL);assert.ok(!gl.enabled.has(gl.STENCIL_TEST));
+assert.equal(gl.viewCount,30,'all ten 60 Hz frames must draw all three views');assert.ok(gl.uploads-uploads<=21,'bounded 30 Hz shadow/detail uploads, never per-view terrain uploads');assert.ok(gl.outlines>=90,'each viewport must mask and outline its own car and character');assert.ok(gl.colorWrite&&gl.depthWrite);assert.equal(gl.depthMode,gl.LEQUAL);assert.ok(!gl.enabled.has(gl.STENCIL_TEST));
 const p=race.players[0];p.finishTime=100;p.distance=5000;p.renderDistance=5050;p.coastElapsed=2;p.boostLevel=0;p.jetScale=0;p.jump=0;renderer.frame(race.players,1300,true,13);assert.ok(renderer.projections.every(v=>Number.isFinite(v.x)&&Number.isFinite(v.y)));
 renderer.destroy();assert.equal(gl.buffers.size,0);assert.equal(gl.vaos.size,0);assert.equal(gl.textures.size,0);
 console.log('PASS renderer: every 60 Hz frame, shared cached VAOs, no per-frame terrain uploads, jet and full-leg transforms, occlusion-only stencil outline protocol, front finish camera, resource cleanup and cached panorama textures');

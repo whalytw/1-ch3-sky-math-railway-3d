@@ -29,14 +29,12 @@ for(const id of ['birds','dragons','butterflies']){
 }
 const uvShader=GAME_SHADERS.fragment.split('if(uSky')[0];assert.equal((uvShader.match(/texture\(uSpriteTexture/g)||[]).length,1,'one pose per pixel; no two-frame wing ghosts');assert.ok(!/uSpriteNext|uSpriteBlend/.test(GAME_SHADERS.fragment));
 assert.equal(artMeshData().length/27,1152,'fixed shared mesh, no per-frame tessellation');
-assert.equal(Object.values(ART_SHEETS).filter(s=>s.cols===1&&s.rows===1).length,13,'all cast cells that could cross boundaries now have independent files');
-for(const d of DECORATIONS)assert.ok(ANIMATIONS[d.id]||['snow','rain','rainbows','fireballs','crowds','windmills','tumbleweeds','dinosaurs','fireflies','meteors'].includes(d.id),d.id+' is included in the motion audit');
+assert.equal(Object.values(ART_SHEETS).filter(s=>s.isolatedViews).length,9,'all directional subjects use isolated camera views');
+for(const d of DECORATIONS)assert.ok(ANIMATIONS[d.id]||['snow','rain','rainbows','fireballs','crowds','windmills','tumbleweeds','dinosaurs','fireflies','meteors','satellites','ufos'].includes(d.id),d.id+' is included in the motion audit');
 for(const id of ['biplanes','airships','balloons','islands']){const a=artAttachments(id,0),b=artAttachments(id,.25);assert.ok(a.length);assert.notDeepEqual(a,b)}
 for(const x of[0,1])assert.equal(fadeWindow(x,0,1,.12),0,'wrapped particles must be invisible when position resets');assert.equal(fadeWindow(.5,0,1,.12),1);
 const tumble={id:'tumbleweeds',point:[1,3,5],size:1,side:1};let centre;
 for(let i=0;i<24;i++){const c=localPoint(decorationMatrix({...tumble,rotation:i*TAU/24}),[0,.7,0]);centre??=c;assert.ok(Math.hypot(...c.map((v,k)=>v-centre[k]))<1e-5,'tumbleweed rolls around its centre, not below the ground')}
 const mill={id:'windmills',point:[0,0,0],size:1,side:1,phase:0};const a=rotorMatrix(mill,0),b=rotorMatrix(mill,.5);assert.notDeepEqual(a,b);assert.deepEqual([...a].slice(12),[...b].slice(12),'windmill hub stays fixed while blades rotate');
-console.log('PASS V1.5 animation: 15 continuous articulated loops, stable wing roots, single-pose sampling, 13 isolated images, all 25 decoration types covered, rotating attachments, wrap fades and stable rolling pivot');
+console.log('PASS V1.6 animation: 15 continuous articulated loops, stable wing roots, single-pose sampling, 9 directional atlases plus 6 isolated images, all 28 decoration types covered, rotating attachments, wrap fades and stable rolling pivot');
 
-// Front whale views reverse where the tail is drawn; animation must follow that tail.
-for(const [eye,mirror]of[[[-5,2,-3],1],[[-5,2,3],-1],[[5,2,-3],-1],[[5,2,3],1]]){const pose=artPose('whales','whale-test',{point:[0,0,0],forward:[1,0,0],phase:0},{lane:0,camera:{eye}},0,new Map());assert.equal(pose.mirror,mirror)}

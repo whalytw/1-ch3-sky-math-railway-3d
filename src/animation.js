@@ -1,6 +1,7 @@
 // Continuous articulated deformation: one image and one wing pair, never pose cross-fades.
 export const TAU=Math.PI*2;
 export const ANIMATIONS=Object.freeze({
+ unicorns:{kind:17,rate:4.0,label:'羽翼拍動、鬃毛與尾巴'},
  birds:{kind:1,rate:10.3,label:'雙翼關節拍翼與尾羽'},dragons:{kind:2,rate:4.8,label:'雙翼拍動與尾巴'},
  butterflies:{kind:3,rate:12.7,label:'各自振翅'},jellyfish:{kind:4,rate:2.8,label:'傘部收縮與觸手波動'},
  whales:{kind:5,rate:2.1,label:'尾鰭擺動'},witches:{kind:6,rate:3.2,label:'披風、裙襬與掃把穗'},
@@ -14,6 +15,7 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=(a,b,x)=>{const t=clamp((x-a)/(b-a));return t*t*(3-2*t)};
 export function deformArt(kind,x,y,t,mirror=1){
  x*=mirror;let X=x,Y=y,Z=0;
+ if(kind>=16){if(kind===16){const wing=ease(.02,.35,y)*(1-ease(.20,.55,x));Y-=wing*.20*(1+Math.sin(t));X+=wing*.035*Math.cos(t);Z+=wing*.10*Math.sin(t)}else if(kind===17){const wing=ease(.08,.35,Math.abs(x))*ease(.0,.3,y);Y+=wing*.20*Math.sin(t);X-=Math.sign(x)*wing*.10*(1-Math.cos(t));X+=ease(-.2,-.8,y)*.035*Math.sin(t+y*3)}else{const lower=ease(.1,-.8,y);X+=lower*.035*Math.sin(t+y*4);Y+=lower*.018*Math.cos(t+x*3)}return [X*mirror,Y,Z];}
  if(kind===1||kind===2){const root=kind===1?.14:.21,d=Math.max(0,Math.abs(x)-root),w=ease(-.45,-.12,y),angle=Math.sin(t)*(kind===1?.92:.76),fold=d*(1-Math.cos(angle))*w;
   X=x-Math.sign(x)*fold;Y=y+d*Math.sin(angle)*.78*w;Z=d*Math.sin(angle)*.12*w;
   const tail=ease(-.22,-.86,y)*(1-ease(.18,.35,Math.abs(x)));X+=Math.sin(t-.8)*tail*(kind===1?.025:.065);
@@ -35,6 +37,7 @@ export function deformArt(kind,x,y,t,mirror=1){
 export const ART_DEFORM_GLSL=`
 float artEase(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 vec3 artSkin(float kind,vec2 uv,float t,float mirror){float x=uv.x*mirror,y=uv.y;vec3 p=vec3(x,y,0.);
+ if(kind>=16.){if(kind<16.5){float wing=artEase(.02,.35,y)*(1.-artEase(.20,.55,x));p.y-=wing*.20*(1.+sin(t));p.x+=wing*.035*cos(t);p.z+=wing*.10*sin(t);}else if(kind<17.5){float wing=artEase(.08,.35,abs(x))*artEase(.0,.3,y);p.y+=wing*.20*sin(t);p.x-=sign(x)*wing*.10*(1.-cos(t));p.x+=artEase(-.2,-.8,y)*.035*sin(t+y*3.);}else{float lower=artEase(.1,-.8,y);p.x+=lower*.035*sin(t+y*4.);p.y+=lower*.018*cos(t+x*3.);}p.x*=mirror;return p;}
  if(kind<2.5){float root=kind<1.5?.14:.21,d=max(0.,abs(x)-root),w=artEase(-.45,-.12,y),a=sin(t)*(kind<1.5?.92:.76);p.x-=sign(x)*d*(1.-cos(a))*w;p.y+=d*sin(a)*.78*w;p.z=d*sin(a)*.12*w;float tail=artEase(-.22,-.86,y)*(1.-artEase(.18,.35,abs(x)));p.x+=sin(t-.8)*tail*(kind<1.5?.025:.065);}
  else if(kind<3.5){float d=max(0.,abs(x)-.08),a=sin(t)*1.38;p.x-=sign(x)*d*(1.-cos(a));p.y+=d*sin(a)*.12;p.z=d*sin(a)*.22;}
  else if(kind<4.5){float bell=artEase(.02,.35,y),s=sin(t),tail=artEase(.14,-.92,y);p.x=x*(1.+.11*s*bell)+.14*tail*tail*sin(t-tail*5.+x*3.);p.y=y-(y-.72)*.07*s*bell+.065*tail*sin(t-.8);}
@@ -53,7 +56,8 @@ vec3 artSkin(float kind,vec2 uv,float t,float mirror){float x=uv.x*mirror,y=uv.y
 `;
 export function artMeshData(nx=24,ny=24){const data=[];const v=(x,y)=>[x,y,0,0,0,1,1,1,1];for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const x=i/nx*2-1,X=(i+1)/nx*2-1,y=j/ny*2-1,Y=(j+1)/ny*2-1;for(const p of[[x,y],[X,y],[X,Y],[x,y],[X,Y],[x,Y]])data.push(...v(...p))}return new Float32Array(data)}
 export function animationPhase(id,clock,phase=0){return ((clock*ANIMATIONS[id].rate+phase)%TAU+TAU)%TAU}
-export function artAttachments(id,clock,phase=0){const t=clock+(phase||0),out=[];
+export function artAttachments(id,clock,phase=0,pose=null){const t=clock+(phase||0),out=[];
+ if(pose&&pose.def.multi&&[0,2].includes(pose.index)){if(id==='biplanes'&&pose.index===2)return [{kind:'propeller',x:0,y:0,r:.21,angle:t*27,alpha:.65}];return [];}
  if(id==='biplanes')out.push({kind:'propeller',x:.64,y:-.12,r:.23,angle:t*27,alpha:.75});
  if(id==='airships'){out.push({kind:'propeller',x:-.39,y:-.43,r:.17,angle:t*18,alpha:.75});for(let i=0;i<3;i++){const q=(t*.65+i/3)%1;out.push({kind:'steam',x:-.36-q*.17,y:-.13+q*.26,r:.035+q*.07,angle:0,alpha:Math.sin(q*Math.PI)*.28})}}
  if(id==='balloons')out.push({kind:'flame',x:-.04,y:-.10,r:.035*(1+.22*Math.sin(t*17)),angle:0,alpha:.75+.2*Math.sin(t*11)});

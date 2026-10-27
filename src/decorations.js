@@ -1,15 +1,16 @@
-import {Geometry} from './geometry.js?v=1.5.0';
-import {random,clamp,hash32} from './math.js?v=1.5.0';
-import {artBounds} from './artwork.js?v=1.5.0';
-import {EscortDirector,ESCORT_TYPES} from './encounters.js?v=1.5.0';
-import {WORLD_END,WORLD_DRAW_END,sub,add,normalize} from './world.js?v=1.5.0';
+import {Geometry} from './geometry.js?v=1.6.0';
+import {random,clamp,hash32} from './math.js?v=1.6.0';
+import {artBounds} from './artwork.js?v=1.6.0';
+import {FlightDirector,FLIGHT_TYPES} from './flight.js?v=1.6.0';
+import {skyEvents,nightAt} from './lighting.js?v=1.6.0';
+import {WORLD_END,WORLD_DRAW_END,sub,add,normalize} from './world.js?v=1.6.0';
 
 export const DECORATIONS=Object.freeze([
  ['snow','雪地飄雪','weather'],['fireballs','火山火球','sky'],['birds','飛過的鳥群','sky'],['balloons','繽紛熱氣球','sky'],['crowds','沿途加油人群','ground'],['windmills','旋轉風車','ground'],['whales','飛翔鯨魚','sky'],['dragons','巨大火龍','sky'],['witches','掃把巫婆','sky'],['heroes','披風飛行英雄','sky'],['biplanes','雙翼螺旋槳飛機','sky'],['tumbleweeds','滾動風滾草','ground'],['dinosaurs','漫步巨型恐龍','ground'],['rain','陣雨','weather'],['rainbows','雨後彩虹','sky'],
- ['fireflies','螢火蟲光舞','ground'],['butterflies','彩蝶花群','sky'],['airships','蒸汽飛船','sky'],['paperplanes','紙飛機編隊','sky'],['islands','浮空花園','sky'],['meteors','流星光尾','sky'],['cloudsheep','雲朵綿羊','sky'],['robots','噴射郵差機器人','sky'],['jellyfish','發光天空水母','sky'],['kites','彩色風箏列隊','sky']
+ ['fireflies','螢火蟲光舞','ground'],['butterflies','彩蝶花群','sky'],['airships','蒸汽飛船','sky'],['paperplanes','滑翔紙飛機','sky'],['islands','遠方天空古城','sky'],['meteors','夜空流星與流星雨','sky'],['cloudsheep','雲朵綿羊','sky'],['robots','噴射郵差機器人','sky'],['jellyfish','發光天空水母','sky'],['kites','繫線彩色風箏','sky'],['unicorns','月光有翼獨角獸','sky'],['satellites','遠方人造衛星','sky'],['ufos','神秘飛碟','sky']
 ].map(([id,label,zone],i)=>Object.freeze({id,label,zone,extra:i>=15})));
 export const DENSITY_BUDGET=Object.freeze({rich:30,medium:16,sparse:7,off:0});
-export const DECORATION_RADII=Object.freeze({snow:20,fireballs:3,birds:8,balloons:5,crowds:5,windmills:7,whales:7,dragons:9,witches:4,heroes:4,biplanes:5,tumbleweeds:2,dinosaurs:9,rain:20,rainbows:11,fireflies:5,butterflies:5,airships:6,paperplanes:8,islands:6,meteors:7,cloudsheep:4,robots:3,jellyfish:5,kites:7});
+export const DECORATION_RADII=Object.freeze({snow:20,fireballs:3,birds:8,balloons:5,crowds:5,windmills:7,whales:7,dragons:9,witches:4,heroes:4,biplanes:5,tumbleweeds:2,dinosaurs:9,rain:20,rainbows:11,fireflies:5,butterflies:5,airships:6,paperplanes:8,islands:6,meteors:7,cloudsheep:4,robots:3,jellyfish:5,kites:7,unicorns:6,satellites:3,ufos:5});
 const MODEL_BOUNDS=new Map();
 export function decorationBounds(id){if(artBounds(id))return artBounds(id);if(!MODEL_BOUNDS.has(id))makeDecoration(id);return MODEL_BOUNDS.get(id)}
 export function crowdPositions(world,item){return Array.from({length:7},(_,j)=>{const x=item.point[0]+(j-3)*.8,z=item.point[2]+(j%2)*.7;return [x,world.footingY(x,z,.25),z]})}
@@ -23,7 +24,19 @@ function person(g,x=0,y=0,z=0,s=1,shirt='#f1bb73'){
 export function makeDecoration(id,variant=0){
  const g=new Geometry(),r=random('mesh:'+id),gold='#eeb857',cream='#f5e9c4',dark='#3b5361';
  if(id==='birds')for(let j=0;j<3;j++){const x=-j*.65,z=j===1?-.9:j===2?.9:0;g.ellipsoid(x,.1,z,.43,.27,.25,'#4b9eaf',12,7);g.ellipsoid(x+.25,.30,z,.25,.24,.22,'#67b4bf',12,7);g.ellipsoid(x+.12,-.025,z,.34,.19,.23,'#f2e5bd',12,6);for(const side of[-1,1]){g.ellipsoid(x+.38,.35,z+side*.17,.045,.055,.027,'#253f4c',9,5);g.ellipsoid(x-.10,.16,z+side*.43,.32,.065,.38,'#4c9aac',12,6);g.ellipsoid(x-.5,.09,z+side*.09,.31,.04,.10,'#447f93',10,5)}for(const side of[-1,1])g.triangle([x+.48,.23,z+side*.09],[x+.70,.28,z],[x+.48,.34,z],'#e0ae58')}
- else if(id==='paperplanes')for(let j=0;j<5;j++){const x=-j*1.1,z=(j%2?1:-1)*j*.8;wing(g,x,0,z,.75,'#f9d991');g.triangle([x+.2,0,z],[x-.6,0,z-1.25],[x-1,0,z-.16],'#f9d991')}
+ else if(id==='paperplanes'){
+  const nose=[1.6,0,0],keel=[-1,-.24,0];for(const side of[-1,1]){const tip=[-.9,.08,side*1.2],fold=[-.8,.12,side*.23],rear=[-1.15,.06,side*.16];g.triangle(nose,tip,fold,side>0?'#fff3cf':'#e7d5ab');g.triangle(nose,fold,keel,'#ccad70');g.triangle(keel,fold,rear,'#efdcae');g.rod(nose,fold,.012,.012,'#c5a96e');g.rod(fold,tip,.009,.009,'#fdf6df')}
+ }
+ else if(id==='ufos'){
+  const rings=[[0,.23],[.6,.40],[1.35,.26],[2.1,.04],[2.22,-.10],[1.75,-.27],[.8,-.46],[0,-.5]];
+  for(let i=0;i<rings.length-1;i++)for(let j=0;j<64;j++){const a=j*Math.PI/32,b=(j+1)*Math.PI/32,[r,y]=rings[i],[R,Y]=rings[i+1],v=(q,r,h)=>[Math.cos(q)*r,h,Math.sin(q)*r];g.quad(v(a,r,y),v(b,r,y),v(b,R,Y),v(a,R,Y),['#dae4e4','#b7d2d6','#a8bec9','#e6d69d','#708b9b','#506673','#344d61'][i])}
+  g.ellipsoid(0,.30,0,.90,.76,.90,'#82c8d3',32,12,0,Math.PI/2);g.ellipsoid(0,.40,0,.69,.58,.69,'#abdfe2',24,10,0,Math.PI/2);
+  for(let j=0;j<16;j++){const a=j*Math.PI/8;g.ellipsoid(Math.cos(a)*2.20,-.10,Math.sin(a)*2.20,.10,.045,.10,j%2?'#8ff8ed':'#fff2bb',8,5)}
+  g.ellipsoid(0,-.49,0,.53,.06,.53,'#9deee4',24,6);
+ }
+ else if(id==='ufoLights'){for(let j=0;j<16;j++){const a=j*Math.PI/8;g.ellipsoid(Math.cos(a)*2.20,-.10,Math.sin(a)*2.20,.105,.05,.105,j%2?'#8ff8ed':'#fff2bb',8,5)}g.ellipsoid(0,-.50,0,.53,.062,.53,'#9deee4',24,6)}
+ else if(id==='satellites')g.ellipsoid(0,0,0,.65,.65,.65,'#f3f5e6',8,5);
+ else if(id==='unicorns'){g.ellipsoid(0,0,0,1.2,.6,.5,'#f3efff',14,8);g.ellipsoid(.95,.6,0,.45,.6,.4,'#fff9ed',12,8);g.cone(1.1,1,1.8,0,.10,'#e9d7a2',10);for(const side of[-1,1])g.triangle([0,.4,side*.3],[-.5,1.5,side*2],[-1,0,side*.5],'#faf9ff')}
  else if(id==='balloons'){
   g.ellipsoid(0,2,0,2,2.5,2,'#e89875',14,8);g.ellipsoid(.1,2.2,0,1.91,2.44,1.94,'#e9be69',10,8);
   g.box(0,-1.5,0,1.1,.65,.9,'#987552');for(const side of[-1,1])g.rod([side*.5,-1.2,0],[side*.9,.2,0],.045,.045,cream);
@@ -102,17 +115,17 @@ export function safeFromRiders(point,radius,world,players){return players.every(
 export function safeDecoration(item,world,players){if(item.id==='tumbleweeds'&&players.some(p=>Math.abs(world.sample(p.lane,p.renderDistance??p.distance).point[0]-item.point[0])<18))return false;if(item.id==='crowds')return crowdPositions(world,item).every(point=>safeFromRiders(point,1.5,world,players));if(item.id==='windmills')return players.every(p=>{const a=add(world.sample(p.lane,p.renderDistance??p.distance).point,[0,1,0]),q=item.point,dx=Math.max(0,Math.abs(a[0]-q[0])-2.8),dz=Math.max(0,Math.abs(a[2]-q[2])-1.3),dy=Math.max(0,q[1]-a[1],a[1]-q[1]-6);return Math.hypot(dx,dy,dz)>4.2});return safeFromRiders(item.point,item.radius,world,players)}
 export function fadeWindow(x,start,end,ramp=1,exitRamp=ramp){const a=ramp?clamp((x-start)/ramp,0,1):1,b=exitRamp?clamp((end-x)/exitRamp,0,1):1;return a*a*(3-2*a)*b*b*(3-2*b)}
 export class DecorationSystem{
- constructor(world,settings={}){this.world=world;this.visible=new Map();this.lastClock=null;this.escorts=new EscortDirector(world,decorationBounds);this.setSettings(settings)}
+ constructor(world,settings={}){this.world=world;this.visible=new Map();this.lastClock=null;this.escorts=new FlightDirector(world);this.setSettings(settings)}
  setSettings(settings){this.settings=settings;this.enabled=normalizeDecorations(settings.decorations);this.density=settings.decorationDensity||'medium'}
  instances(players,clock,quality='medium',views=[]){
   const budget=Math.min(DENSITY_BUDGET[this.density]??16,quality==='low'?12:30);if(!budget){this.visible.clear();return[]}const dt=this.lastClock===null||clock<this.lastClock?0:Math.min(.25,clock-this.lastClock);if(this.lastClock!==null&&clock<this.lastClock)this.visible.clear();this.lastClock=clock;
-  const escorts=this.escorts.instances(players,clock,views,this.enabled,this.density);const w=this.world,positions=players.map(p=>w.sample(p.lane,p.renderDistance??p.distance).point),slots=new Set(),out=[];
+  const escorts=[...this.escorts.instances(players,clock,views,this.enabled,this.density,this.settings),...skyEvents(this.world,clock,this.enabled)];const w=this.world,positions=players.map(p=>w.sample(p.lane,p.renderDistance??p.distance).point),slots=new Set(),out=[];
   for(const p of positions)for(let i=Math.max(1,Math.floor((p[0]-100)/30));i<=Math.ceil((p[0]+110)/30)&&i*30<WORLD_DRAW_END-35;i++)slots.add(i);
   for(const slot of slots){
    const anchor=slot*30,r=random(w.seed+':decor:'+slot),theme=w.themeAtX(anchor).id;
-   const pool=DECORATIONS.filter(d=>this.enabled[d.id]&&!ESCORT_TYPES.includes(d.id)&&(d.id!=='snow'||theme==='snow')&&(d.id!=='fireballs'||theme==='volcano'));
+   const pool=DECORATIONS.filter(d=>this.enabled[d.id]&&!FLIGHT_TYPES.includes(d.id)&&(d.id!=='snow'||theme==='snow')&&(d.id!=='fireballs'||theme==='volcano'));
    if(!pool.length)continue;const def=pool[(slot+hash32(w.seed)%pool.length)%pool.length],id=def.id,side=r()>.5?1:-1,phase=r()*6.283,track=w.routes.map((_,i)=>w.pointAtX(i,anchor));
-   const weather=clock%40;let alpha=1;if(id==='rain')alpha=fadeWindow(weather,0,15,2);if(id==='rainbows')alpha=fadeWindow(weather,15,40,2);if(alpha===0)continue;
+   const weather=clock%40;let alpha=1;if(id==='rain')alpha=fadeWindow(weather,0,15,2);if(id==='rainbows')alpha=fadeWindow(weather,15,40,2);if(id==='fireflies')alpha*=nightAt(w,anchor,this.settings);if(alpha===0)continue;
    let x=anchor,z=(side<0?Math.min(...track.map(p=>p[2])):Math.max(...track.map(p=>p[2])))+side*(7+r()*6),y=w.terrainY(x,z),size=1,radius=3,motion=0,rotation=0,variant=0,source=null,forward=null;
    if(def.zone==='sky'){
     x+=Math.sin(clock*.15+phase)*8;y=track[(slot%3)][1]+7+r()*5+Math.sin(clock*.7+phase)*.6;z+=side*4;
@@ -135,13 +148,13 @@ export class DecorationSystem{
    const nearest=Math.min(...positions.map(p=>Math.abs(p[0]-x)));if(id==='tumbleweeds')alpha*=fadeWindow(nearest,18,Infinity,15,0);out.push({id,key:`ambient:${slot}:${id}`,point,size,radius,phase,motion,rotation,variant,nearest,side,source,forward,sourceAlpha:fadeWindow(nearest,0,110,0,22),alpha:alpha*fadeWindow(nearest,0,110,0,22)});
   }
   // Reserve three companion places so a new flight cannot evict a visible roadside object.
-  const slotsAvailable=Math.max(0,budget-3),chosen=out.sort((a,b)=>a.nearest-b.nearest).slice(0,slotsAvailable),keys=new Set(chosen.map(v=>v.key)),candidates=new Map(out.map(v=>[v.key,v]));
+  const slotsAvailable=Math.max(0,budget-escorts.filter(o=>!o.distant).length),chosen=out.sort((a,b)=>a.nearest-b.nearest).slice(0,slotsAvailable),keys=new Set(chosen.map(v=>v.key)),candidates=new Map(out.map(v=>[v.key,v]));
   for(const [key,state] of this.visible){
    if(candidates.has(key))state.item=candidates.get(key);
    state.opacity=keys.has(key)?Math.min(1,state.opacity+dt/1.1):Math.max(0,state.opacity-dt/.9);
    if(!this.enabled[state.item.id]||!safeDecoration(state.item,w,players)||state.opacity===0&&!keys.has(key))this.visible.delete(key);
   }
   for(const item of chosen)if(!this.visible.has(item.key)&&this.visible.size<slotsAvailable)this.visible.set(item.key,{item,opacity:0});
-  const ambient=[...this.visible.values()].slice(0,slotsAvailable).map(s=>({...s.item,alpha:s.item.alpha*s.opacity,sourceAlpha:s.item.sourceAlpha*s.opacity}));return [...escorts,...ambient];
+  const ambient=[...this.visible.values()].slice(0,slotsAvailable).map(s=>({...s.item,alpha:s.item.alpha*s.opacity,sourceAlpha:s.item.sourceAlpha*s.opacity}));const close=escorts.filter(o=>!o.distant).sort((a,b)=>Math.min(...positions.map(p=>Math.hypot(...sub(p,a.point))))-Math.min(...positions.map(p=>Math.hypot(...sub(p,b.point)))));return [...escorts.filter(o=>o.distant),...close.slice(0,budget),...ambient.slice(0,Math.max(0,budget-close.length))];
  }
 }

@@ -12,4 +12,4 @@ const empty=makeSprite(makeCart('#69dfed')),numbered=makeSprite(makeCart('#69dfe
 assert.ok(whitePixels(numbered)>whitePixels(empty)+80,'both digits must remain visible above the rear plate');assert.notDeepEqual(numbered.canvas.image.data,makeSprite(makeCart('#69dfed',82)).canvas.image.data);
 for(const front of[false,true])for(const standing of[false,true]){const s=makeSprite(makeCharacter('#69dfed',standing),front);assert.ok(s.canvas.image.data.some(v=>v));assert.ok(Number.isFinite(s.size)&&s.size>0)}
 for(const d of DECORATIONS){const s=makeSprite(makeDecoration(d.id));assert.ok(s.canvas.image.data.some(v=>v),d.id)}
-console.log('PASS compatibility depth raster: readable rear number plate, front/back smiling characters and all 25 decoration sprites; generated once and reused');
+console.log('PASS compatibility depth raster: readable rear number plate, front/back smiling characters and all 28 decoration sprites; generated once and reused');

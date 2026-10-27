@@ -1,0 +1,8 @@
+import {hash32,clamp} from './math.js?v=1.6.0';
+const ids=['sunset','alpine','fuji','castle','aurora','sea','spires','planet','cloudpalace'];
+export function backgroundFor(seed,theme,style='auto'){return style==='auto'?ids[hash32(seed+theme.id)%ids.length]:style}
+export function nightAt(world,x,settings={}){const ns=world.themes.map(t=>['aurora','planet'].includes(backgroundFor(world.seed,t,settings.backgroundStyle||'auto'))?1:0),blend=world.blendAt(x);return ns[0]+(ns[1]-ns[0])*blend}
+export function lightAt(world,x,settings={}){const night=nightAt(world,x,settings);return {night,tint:[1-night*.49,1-night*.43,1-night*.28],shadow:.45-night*.22,direction:[-.30,.91,.28]}}
+export function skyEvents(world,clock,enabled){const out=[],seed=hash32(world.seed+':sky'),cycle=Math.floor(clock/52),rain=hash32(world.seed+':shower:'+cycle)%4===0,count=rain?7:1;
+ if(enabled.meteors)for(let i=0;i<count;i++){const start=cycle*52+10+i*1.1+(seed%6),age=clock-start,duration=1.5+(i%3)*.2;if(age<0||age>duration)continue;const side=(cycle%2?1:-1),point=[23000+i*370,10000-age*2100+i*190,side*(-6000+age*8500)+i*450],v=[0,-2100,side*8500];out.push({id:'meteors',key:'meteor:'+cycle+':'+i,point,forward:v.map(x=>x/Math.hypot(...v)),size:200+i*14,radius:1800,alpha:Math.sin(Math.PI*clamp(age/duration,0,1))*.9,phase:0,motion:0,rotation:0,variant:0,distant:true,nightOnly:true})}
+ if(enabled.satellites){const t=(clock+(seed%240))%900;out.push({id:'satellites',key:'satellite',point:[26000,11500,-23000+t*52],forward:[0,0,1],size:55,radius:110,alpha:Math.min(1,t/8,(900-t)/8)*(.65+.25*Math.exp(-Math.pow((t-430)/18,2))),phase:0,motion:0,rotation:0,variant:0,distant:true,nightOnly:true})}return out}

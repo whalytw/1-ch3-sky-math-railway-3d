@@ -1,9 +1,9 @@
-import {Geometry} from './geometry.js?v=1.6.0';
-import {random,clamp,hash32} from './math.js?v=1.6.0';
-import {artBounds} from './artwork.js?v=1.6.0';
-import {FlightDirector,FLIGHT_TYPES} from './flight.js?v=1.6.0';
-import {skyEvents,nightAt} from './lighting.js?v=1.6.0';
-import {WORLD_END,WORLD_DRAW_END,sub,add,normalize} from './world.js?v=1.6.0';
+import {Geometry} from './geometry.js?v=1.6.1';
+import {random,clamp,hash32} from './math.js?v=1.6.1';
+import {artBounds} from './artwork.js?v=1.6.1';
+import {FlightDirector,FLIGHT_TYPES} from './flight.js?v=1.6.1';
+import {skyEvents,nightAt} from './lighting.js?v=1.6.1';
+import {WORLD_END,WORLD_DRAW_END,sub,add,normalize} from './world.js?v=1.6.1';
 
 export const DECORATIONS=Object.freeze([
  ['snow','雪地飄雪','weather'],['fireballs','火山火球','sky'],['birds','飛過的鳥群','sky'],['balloons','繽紛熱氣球','sky'],['crowds','沿途加油人群','ground'],['windmills','旋轉風車','ground'],['whales','飛翔鯨魚','sky'],['dragons','巨大火龍','sky'],['witches','掃把巫婆','sky'],['heroes','披風飛行英雄','sky'],['biplanes','雙翼螺旋槳飛機','sky'],['tumbleweeds','滾動風滾草','ground'],['dinosaurs','漫步巨型恐龍','ground'],['rain','陣雨','weather'],['rainbows','雨後彩虹','sky'],

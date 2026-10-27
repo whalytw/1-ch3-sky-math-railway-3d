@@ -1,7 +1,7 @@
-import {Geometry} from './geometry.js?v=1.6.0';
-import {normalize,sub} from './world.js?v=1.6.0';
-import {clamp} from './math.js?v=1.6.0';
-import {artParts} from './artwork.js?v=1.6.0';
+import {Geometry} from './geometry.js?v=1.6.1';
+import {normalize,sub} from './world.js?v=1.6.1';
+import {clamp} from './math.js?v=1.6.1';
+import {artParts} from './artwork.js?v=1.6.1';
 
 // Receivers are actual terrain and track beds/decks, never a camera-facing decal.
 export function receiverY(w,x,z){const row=w.terrainRow(Math.floor(x));if(z<row[0][2]||z>row.at(-1)[2])return null;let y=w.surfaceY(x,z);

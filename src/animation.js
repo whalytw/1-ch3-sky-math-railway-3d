@@ -6,7 +6,7 @@ export const ANIMATIONS=Object.freeze({
  butterflies:{kind:3,rate:12.7,label:'各自振翅'},jellyfish:{kind:4,rate:2.8,label:'傘部收縮與觸手波動'},
  whales:{kind:5,rate:2.1,label:'尾鰭擺動'},witches:{kind:6,rate:3.2,label:'披風、裙襬與掃把穗'},
  heroes:{kind:7,rate:4.1,label:'披風波動'},robots:{kind:8,rate:9.2,label:'噴射火焰脈動'},
- airships:{kind:9,rate:2.4,label:'尾帆、螺旋槳與蒸汽'},cloudsheep:{kind:10,rate:3.8,label:'四腳交替踢動'},
+ airships:{kind:9,rate:2.4,label:'尾帆、螺旋槳與蒸汽'},cloudsheep:{kind:10,rate:3.8,label:'跳躍時收腿、落點前伸腿'},
  kites:{kind:11,rate:3.1,label:'尾帶波動'},balloons:{kind:12,rate:1.8,label:'吊籃擺動與燃燒器'},
  islands:{kind:13,rate:2.6,label:'流水與樹冠'},paperplanes:{kind:14,rate:2.3,label:'獨立傾斜與微幅翼面彎曲'},
  biplanes:{kind:15,rate:5.1,label:'旋轉螺旋槳與圍巾'}
@@ -26,7 +26,7 @@ export function deformArt(kind,x,y,t,mirror=1){
  }else if(kind===7){const cape=ease(.35,-.75,x)*ease(-.30,.0,y)*(1-ease(.5,.75,y));Y+=cape*.12*Math.sin(t+x*4);X+=cape*.025*Math.cos(t+x*3);
  }else if(kind===8){const flame=ease(.0,-.64,x)*ease(.18,-.72,y),pulse=Math.sin(t)+.25*Math.sin(t*3);X-=flame*.055*pulse;Y-=flame*.05*pulse;
  }else if(kind===9){const sail=ease(-.15,-.9,x)*ease(-.2,.15,y);Y+=sail*.04*Math.sin(t+x*4);
- }else if(kind===10){const leg=ease(-.13,-.65,y),phase=x<-.35?0:x<0?Math.PI:x<.4?0:Math.PI;X+=leg*.065*Math.sin(t+phase);Y+=leg*.045*Math.cos(t+phase);
+ }else if(kind===10){const leg=ease(-.13,-.65,y),tuck=(1-Math.cos(t))*.5;X+=leg*.045*Math.sin(t+(x<0?-.3:.3));Y+=leg*.11*tuck;
  }else if(kind===11){const tail=ease(.05,-.88,y);X+=tail*tail*.13*Math.sin(t-tail*6);Y+=tail*.03*Math.cos(t-tail*4);
  }else if(kind===12){const basket=ease(-.20,-.75,y);X+=basket*.055*Math.sin(t);Y+=basket*.014*Math.cos(t*2);
  }else if(kind===13){const water=ease(-.05,-.80,y)*ease(-.15,.15,x)*(1-ease(.55,.85,x));X+=water*.025*Math.sin(t-y*10);Y+=water*.035*Math.sin(t-y*12);X+=ease(.15,.72,y)*.018*Math.sin(t+y*3);
@@ -46,7 +46,7 @@ vec3 artSkin(float kind,vec2 uv,float t,float mirror){float x=uv.x*mirror,y=uv.y
  else if(kind<7.5){float cape=artEase(.35,-.75,x)*artEase(-.30,.0,y)*(1.-artEase(.5,.75,y));p.y+=cape*.12*sin(t+x*4.);p.x+=cape*.025*cos(t+x*3.);}
  else if(kind<8.5){float flame=artEase(.0,-.64,x)*artEase(.18,-.72,y),pulse=sin(t)+.25*sin(t*3.);p.x-=flame*.055*pulse;p.y-=flame*.05*pulse;}
  else if(kind<9.5){float sail=artEase(-.15,-.9,x)*artEase(-.2,.15,y);p.y+=sail*.04*sin(t+x*4.);}
- else if(kind<10.5){float leg=artEase(-.13,-.65,y),phase=x<-.35?0.:x<0.?3.14159265:x<.4?0.:3.14159265;p.x+=leg*.065*sin(t+phase);p.y+=leg*.045*cos(t+phase);}
+ else if(kind<10.5){float leg=artEase(-.13,-.65,y),tuck=(1.-cos(t))*.5;p.x+=leg*.045*sin(t+(x<0.?-.3:.3));p.y+=leg*.11*tuck;}
  else if(kind<11.5){float tail=artEase(.05,-.88,y);p.x+=tail*tail*.13*sin(t-tail*6.);p.y+=tail*.03*cos(t-tail*4.);}
  else if(kind<12.5){float basket=artEase(-.20,-.75,y);p.x+=basket*.055*sin(t);p.y+=basket*.014*cos(t*2.);}
  else if(kind<13.5){float water=artEase(-.05,-.80,y)*artEase(-.15,.15,x)*(1.-artEase(.55,.85,x));p.x+=water*.025*sin(t-y*10.);p.y+=water*.035*sin(t-y*12.);p.x+=artEase(.15,.72,y)*.018*sin(t+y*3.);}

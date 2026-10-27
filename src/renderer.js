@@ -1,15 +1,15 @@
-import {buildShadowGeometry} from './shadows.js?v=1.6.0';
-import {lightAt,nightAt} from './lighting.js?v=1.6.0';
-import {Geometry,matMul,perspective,lookAt} from './geometry.js?v=1.6.0';
-import {normalize,sub,add,scale,cross,lerp,WORLD_END,WORLD_DRAW_END} from './world.js?v=1.6.0';
-import {clamp,random} from './math.js?v=1.6.0';
-import {CHUNK_SIZE,makeChunk,makeCart,makeCharacter,makeArm,makeJet,makeFlame,makeCrowd} from './scenery.js?v=1.6.0';
-import {DECORATIONS,DecorationSystem,makeDecoration,crowdPositions,decorationBounds} from './decorations.js?v=1.6.0';
-import {encounterMatrix,projectedBounds,overlaps} from './encounters.js?v=1.6.0';
-import {FLIGHT_ART,ART_SHEETS,artworkBank,loadArtwork,artParts,billboardModel,artPose,cellFor} from './artwork.js?v=1.6.0';
-import {makePanorama} from './background.js?v=1.6.0';
-import {ART_DEFORM_GLSL,ANIMATIONS,TAU,deformArt,artMeshData,artAttachments} from './animation.js?v=1.6.0';
-import {makeSprite,paintSprite} from './sprites.js?v=1.6.0';
+import {buildShadowGeometry} from './shadows.js?v=1.6.1';
+import {lightAt,nightAt} from './lighting.js?v=1.6.1';
+import {Geometry,matMul,perspective,lookAt} from './geometry.js?v=1.6.1';
+import {normalize,sub,add,scale,cross,lerp,WORLD_END,WORLD_DRAW_END} from './world.js?v=1.6.1';
+import {clamp,random} from './math.js?v=1.6.1';
+import {CHUNK_SIZE,makeChunk,makeCart,makeCharacter,makeArm,makeJet,makeFlame,makeCrowd} from './scenery.js?v=1.6.1';
+import {DECORATIONS,DecorationSystem,makeDecoration,crowdPositions,decorationBounds} from './decorations.js?v=1.6.1';
+import {encounterMatrix,projectedBounds,overlaps} from './encounters.js?v=1.6.1';
+import {FLIGHT_ART,ART_SHEETS,artworkBank,loadArtwork,artParts,billboardModel,artPose,cellFor} from './artwork.js?v=1.6.1';
+import {makePanorama} from './background.js?v=1.6.1';
+import {ART_DEFORM_GLSL,ANIMATIONS,TAU,deformArt,artMeshData,artAttachments} from './animation.js?v=1.6.1';
+import {makeSprite,paintSprite} from './sprites.js?v=1.6.1';
 export const PLAYER_COLORS=['#69dfed','#ffba75','#a4e799'];
 const IDENTITY=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
 export const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
@@ -18,6 +18,13 @@ export function localPoint(m,p){return [m[12]+m[0]*p[0]+m[4]*p[1]+m[8]*p[2],m[13
 function offsetModel(m,point,s=[1,1,1]){const a=m.slice();const p=localPoint(m,point);a[12]=p[0];a[13]=p[1];a[14]=p[2];for(let j=0;j<3;j++){a[j]*=s[0];a[4+j]*=s[1];a[8+j]*=s[2]}return a}
 export function jumpLift(p){return p.jump>0?Math.sin(Math.PI*(1-p.jump/1.15))*1.10:0}
 export function fieldOfView(p){return 1.00+.10*clamp((p.speed-60)/40,0,1)+.18*(1-smooth((p.distance||0)/55))}
+// A sky landmark has an angular position, not a position the camera approaches.
+// Ignore translation, slope pitch, jumping and speed zoom; keep heading/turns.
+export function distantSceneView(view,item){
+ let camera=view.camera,fov=view.fov;
+ if(item.skyAnchored){const raw=camera.orbit?sub(camera.target,camera.eye):camera.forward||sub(camera.target,camera.eye),forward=normalize([raw[0],0,raw[2]]);camera={...camera,eye:[0,0,0],target:forward,forward,point:[0,0,0]};fov=1.05}
+ return {...view,camera,fov,vp:matMul(perspective(fov,view.W/view.H,.1,100000),lookAt(camera.eye,camera.target,[0,1,0]))};
+}
 export function cameraFor(world,p,heading=null){const s=world.sample(p.lane,p.renderDistance??p.distance),f=heading||normalize([s.forward[0],s.forward[1]*.45,s.forward[2]]),r=normalize(cross(f,[0,1,0])),u=normalize(cross(r,f)),orbit=p.finishTime!==null&&p.finishTime!==undefined?smooth((p.coastElapsed||0)/2)*Math.PI:0;
  const side=add(scale(r,Math.cos(orbit)),scale(f,Math.sin(orbit))),lift=jumpLift(p)*.65,anchor=add(s.point,scale(u,lift)),radius=7.5+4.5*(1-smooth((p.distance||0)/55));
  const eye=add(add(add(add(anchor,scale(f,-radius*Math.cos(orbit))),scale(r,radius*Math.sin(orbit))),scale(u,3.5)),scale(side,1.3));
@@ -44,7 +51,7 @@ void main(){vShadeAlpha=aColor.r;vDecorAlpha=1.;vUv=aPosition.xy*.5+.5;if(uSky>.
  else if(uMotion>3.5&&uMotion<5.5){float rate=uMotion<4.5?1.5:10.;local.y=mod(local.y-uTime*rate+12.,24.)-12.;local.x+=sin(uTime*.6+local.z)*.4;vDecorAlpha=smoothstep(-12.,-10.,local.y)*(1.-smoothstep(10.,12.,local.y));}
  else if(uMotion>5.5&&uMotion<6.5){float arm=smoothstep(.13,.32,abs(local.x))*smoothstep(.65,.95,local.y),a=sin(uTime*3.2+uPhase+sign(local.x))*.26*arm;vec2 q=local.xy-vec2(sign(local.x)*.18,.76);local.xy=vec2(q.x*cos(a)-q.y*sin(a),q.x*sin(a)+q.y*cos(a))+vec2(sign(local.x)*.18,.76);}
  else if(uMotion>6.5){float seed=local.x*2.+local.z*3.;local.x+=sin(uTime*1.3+seed)*.20;local.y+=sin(uTime*1.7+seed)*.16;local.z+=cos(uTime*1.1+seed)*.20;vDecorAlpha=.35+.65*pow(.5+.5*sin(uTime*2.8+seed),2.);}
- vec3 p=(uModel*vec4(local,1.0)).xyz;if(uBob>0.5)p.y+=sin(uTime*8.0+p.x*2.1+p.z*.25)*.055;vec4 clip=uMvp*vec4(p,1.0);vec3 n=normalize(mat3(uModel)*aNormal);if(uOutlinePixels>0.0){vec2 direction=(uMvp*vec4(n,0.0)).xy;direction/=max(length(direction),.001);clip.xy+=direction*(2.0/uViewport)*uOutlinePixels*clip.w;}gl_Position=clip;float light=max(0.0,dot(n,normalize(vec3(-.30,.91,.28))));vColor=aColor*(.67+.33*light);vFog=uDistant>.5?.17:smoothstep(uFar*.35,uFar,distance(p,uEye));}`;
+ vec3 p=(uModel*vec4(local,1.0)).xyz;if(uBob>0.5)p.y+=sin(uTime*8.0+p.x*2.1+p.z*.25)*.055;vec4 clip=uMvp*vec4(p,1.0);vec3 n=normalize(mat3(uModel)*aNormal);if(uOutlinePixels>0.0){vec2 direction=(uMvp*vec4(n,0.0)).xy;direction/=max(length(direction),.001);clip.xy+=direction*(2.0/uViewport)*uOutlinePixels*clip.w;}gl_Position=clip;float light=max(0.0,dot(n,normalize(vec3(-.30,.91,.28))));vColor=aColor*(.67+.33*light);vFog=uDistant>1.5?.38:uDistant>.5?.17:smoothstep(uFar*.35,uFar,distance(p,uEye));}`;
 const fs=`#version 300 es
 precision highp float;in float vShadeAlpha;uniform vec3 uLightTint;uniform float uEmissive;uniform float uShadowPass;in vec3 vColor;in float vFog;in vec2 vUv;in float vDecorAlpha;uniform sampler2D uPanoramaA;uniform sampler2D uPanoramaB;uniform float uSky;uniform float uSkyMix;uniform vec2 uSkyOffset;uniform vec3 uFog;uniform vec3 uOutlineColor;uniform float uMode;uniform float uAlpha;uniform sampler2D uSpriteTexture;uniform float uSprite;uniform vec2 uSpriteGrid;uniform vec2 uSpriteCell;uniform vec2 uSpriteInset;uniform float uSpriteFlip;out vec4 fragColor;
 void main(){if(uShadowPass>.5){fragColor=vec4(uShadowPass>1.5?vec3(.60,.87,1.):vec3(.075,.095,.13),vShadeAlpha*uAlpha);return;}if(uSprite>.5){vec2 uv=vUv;if(uSpriteFlip>.5)uv.x=1.-uv.x;uv=clamp(uv,uSpriteInset,vec2(1.)-uSpriteInset);uv=(vec2(uSpriteCell.x,uSpriteGrid.y-1.-uSpriteCell.y)+uv)/uSpriteGrid;vec4 color=texture(uSpriteTexture,uv);color.a*=uAlpha;if(color.a<.025)discard;fragColor=vec4(mix(color.rgb*mix(uLightTint,vec3(1.),uEmissive),uFog,vFog*.45),color.a);return;}if(uSky>.5){vec2 uv=vec2(vUv.x*.34+uSkyOffset.x,clamp(vUv.y*.95+uSkyOffset.y,0.,1.));fragColor=mix(texture(uPanoramaA,uv),texture(uPanoramaB,uv),uSkyMix);return;}vec3 c=uMode>1.5?vColor*1.35:mix(vColor*uLightTint,uFog,vFog*.96);if(uMode>.5&&uMode<1.5)c=uOutlineColor;fragColor=vec4(c,uAlpha*vDecorAlpha);}`;
@@ -68,7 +75,7 @@ export class SharedRenderer{
  setWorld(world){
   for(const m of this.chunks.values())this.disposeMesh(m);this.chunks.clear();this.pending.clear();this.fallbackQueue=[];this.worker?.terminate();this.worker=null;this.disposeMesh(this.crowd);this.crowd=this.upload(makeCrowd(world));this.world=world;this.sceneLayouts=[];this.decorations=new DecorationSystem(world,this.sceneSettings);this.setSceneSettings(this.sceneSettings);this.headings=[];this.lastDraw=0;this.shadowClock=-Infinity;this.lastStream=-Infinity;
   for(let i=-2;i<=7;i++)this.chunks.set(i,this.upload(makeChunk(world,i)));
-  try{if(typeof Worker!=='undefined'){this.worker=new Worker(new URL('./scene-worker.js?v=1.6.0',import.meta.url),{type:'module'});this.worker.onmessage=({data})=>{if(this.destroyed||!this.world||data.seed!==this.world.seed||data.type!=='chunk')return;this.pending.delete(data.index);this.disposeMesh(this.chunks.get(data.index));this.chunks.set(data.index,this.upload(data.data))};this.worker.onerror=()=>{this.worker?.terminate();this.worker=null;this.pending.clear();this.lastStream=-Infinity};this.worker.postMessage({type:'init',seed:world.seed})}}catch{this.worker=null}
+  try{if(typeof Worker!=='undefined'){this.worker=new Worker(new URL('./scene-worker.js?v=1.6.1',import.meta.url),{type:'module'});this.worker.onmessage=({data})=>{if(this.destroyed||!this.world||data.seed!==this.world.seed||data.type!=='chunk')return;this.pending.delete(data.index);this.disposeMesh(this.chunks.get(data.index));this.chunks.set(data.index,this.upload(data.data))};this.worker.onerror=()=>{this.worker?.terminate();this.worker=null;this.pending.clear();this.lastStream=-Infinity};this.worker.postMessage({type:'init',seed:world.seed})}}catch{this.worker=null}
  }
  setSeats(seats){const key=seats.join(',');if(key===this.seatSignature)return;this.carts.forEach(m=>this.disposeMesh(m));this.carts=PLAYER_COLORS.map((c,i)=>this.upload(makeCart(c,seats[i])));this.seatSignature=key}
  setSceneSettings(settings){this.shadowClock=-Infinity;this.sceneSettings={...settings};this.decorations?.setSettings(settings);if(!this.world)return;
@@ -130,7 +137,7 @@ export class SharedRenderer{
   for(let i=0;i<3;i++){
    const v=this.viewports[i];if(!v?.w||!v.h)continue;gl.viewport(v.x,v.y,v.w,v.h);gl.scissor(v.x,v.y,v.w,v.h);gl.stencilMask(0xff);gl.clearStencil(0);
    const {camera,vp}=views[i],blend=w.blendAt(camera.point[0]),sky=mixColor(w.themes[0].sky,w.themes[1].sky,blend),fog=mixColor(w.themes[0].fog,w.themes[1].fog,blend);gl.clearColor(...sky.map((v,k)=>v*lightAt(w,camera.point[0],this.sceneSettings).tint[k]),1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT|gl.STENCIL_BUFFER_BIT);gl.uniform3fv(this.uniform.uFog,fog);gl.uniform3fv(this.uniform.uEye,camera.eye);gl.uniform2f(this.uniform.uViewport,v.w,v.h);
-   const lighting=lightAt(w,camera.point[0],this.sceneSettings);gl.uniform3fv(this.uniform.uLightTint,lighting.tint);gl.uniform3fv(this.uniform.uFog,fog.map((v,k)=>v*lighting.tint[k]));this.drawSky(camera,blend);const distantVP=matMul(perspective(fieldOfView(players[i]),v.w/v.h,.1,100000),lookAt(camera.eye,camera.target,[0,1,0]));gl.uniformMatrix4fv(this.uniform.uMvp,false,distantVP);gl.uniform1f(this.uniform.uDistant,1);gl.depthMask(false);for(const item of decorationInstances.filter(o=>o.distant)){const alpha=item.alpha*(item.nightOnly?lighting.night:1);if(alpha>.002)this.drawDecoration({...item,alpha},clock,{...views[i],vp:distantVP})}gl.depthMask(true);gl.uniform1f(this.uniform.uDistant,0);gl.uniformMatrix4fv(this.uniform.uMvp,false,vp);
+   const lighting=lightAt(w,camera.point[0],this.sceneSettings);gl.uniform3fv(this.uniform.uLightTint,lighting.tint);gl.uniform3fv(this.uniform.uFog,fog.map((v,k)=>v*lighting.tint[k]));this.drawSky(camera,blend);gl.depthMask(false);for(const item of decorationInstances.filter(o=>o.distant)){const alpha=item.alpha*(item.nightOnly?lighting.night:1);if(alpha>.002){const distantView=distantSceneView(views[i],item);gl.uniformMatrix4fv(this.uniform.uMvp,false,distantView.vp);gl.uniform1f(this.uniform.uDistant,item.skyAnchored?2:1);this.drawDecoration({...item,alpha},clock,distantView)}}gl.depthMask(true);gl.uniform1f(this.uniform.uDistant,0);gl.uniformMatrix4fv(this.uniform.uMvp,false,vp);
    for(const [index,mesh]of this.chunks)if(Math.abs(index*CHUNK_SIZE+CHUNK_SIZE/2-camera.point[0])<far+CHUNK_SIZE/2)this.drawMesh(mesh,IDENTITY);
    this.drawShadows(lighting.night);
    if(Math.abs(camera.point[0])<far+20||camera.point[0]>WORLD_END-far-20){gl.uniform1f(this.uniform.uBob,1);this.drawMesh(this.crowd,IDENTITY);gl.uniform1f(this.uniform.uBob,0)}
@@ -182,7 +189,7 @@ export class CanvasFallbackRenderer{
  frame(players,now,force=false,clock=now/1000){if(!this.world||!force&&now-this.lastDraw<10)return;this.lastDraw=now;const ctx=this.ctx,w=this.world,views=players.map((p,i)=>{const v=this.viewports[i],camera=cameraFor(w,p),vp=matMul(perspective(fieldOfView(p),v.w/v.h,.1,110),lookAt(camera.eye,camera.target,[0,1,0]));return sceneView(this,i,p,camera,vp,v,actorTransforms(w,p))}),decor=this.decorations.instances(players,clock,'low',views);this.encounterInstances=decor.filter(d=>d.escort);const shadows=buildShadowGeometry(w,players,decor,clock,this.sceneSettings.shadows||'standard');
   for(let i=0;i<3;i++){
    const v=this.viewports[i],p=players[i],cam=views[i].camera,vp=views[i].vp,proj=point=>project(vp,point,v.w,v.h),theme=w.themeAt(i,p.renderDistance??p.distance),x=cam.point[0];
-   ctx.save();ctx.translate(v.x,v.y);ctx.beginPath();ctx.rect(0,0,v.w,v.h);ctx.clip();const sky=ctx.createLinearGradient(0,0,0,v.h);sky.addColorStop(0,theme.sky);sky.addColorStop(1,theme.fog);ctx.fillStyle=sky;ctx.fillRect(0,0,v.w,v.h);if(this.sceneSettings.background){const pano=this.panoramas?.[x<WORLD_END/2?0:1];if(pano){const direction=normalize(sub(cam.target,cam.eye)),offset=((.5+Math.atan2(direction[2],direction[0])/(Math.PI*2))%1+1)%1,fullW=v.w/.34;for(let k=-1;k<=1;k++)ctx.drawImage(pano.canvas,-offset*fullW+k*fullW,v.h*-.02,fullW,v.h)}}const distantVP=matMul(perspective(fieldOfView(p),v.w/v.h,.1,100000),lookAt(cam.eye,cam.target,[0,1,0]));for(const o of decor.filter(q=>q.distant)){const alpha=o.alpha*(o.nightOnly?nightAt(w,x,this.sceneSettings):1);if(alpha<.003)continue;const vv={...views[i],vp:distantVP};if(FLIGHT_ART[o.id])paintArtwork(ctx,this.art,{...o,alpha},vv,clock,this.artPoses,this.artFades);else if(this.nativeMeshes.has(o.id))paintNativeGeometry(ctx,this.nativeMeshes.get(o.id),decorationMatrix(o),vv,alpha)}ctx.fillStyle=theme.ground;ctx.fillRect(0,v.h*.49,v.w,v.h*.51);
+   ctx.save();ctx.translate(v.x,v.y);ctx.beginPath();ctx.rect(0,0,v.w,v.h);ctx.clip();const sky=ctx.createLinearGradient(0,0,0,v.h);sky.addColorStop(0,theme.sky);sky.addColorStop(1,theme.fog);ctx.fillStyle=sky;ctx.fillRect(0,0,v.w,v.h);if(this.sceneSettings.background){const pano=this.panoramas?.[x<WORLD_END/2?0:1];if(pano){const direction=normalize(sub(cam.target,cam.eye)),offset=((.5+Math.atan2(direction[2],direction[0])/(Math.PI*2))%1+1)%1,fullW=v.w/.34;for(let k=-1;k<=1;k++)ctx.drawImage(pano.canvas,-offset*fullW+k*fullW,v.h*-.02,fullW,v.h)}}for(const o of decor.filter(q=>q.distant)){const alpha=o.alpha*(o.nightOnly?nightAt(w,x,this.sceneSettings):1);if(alpha<.003)continue;const vv=distantSceneView(views[i],o);if(FLIGHT_ART[o.id])paintArtwork(ctx,this.art,{...o,alpha},vv,clock,this.artPoses,this.artFades);else if(this.nativeMeshes.has(o.id))paintNativeGeometry(ctx,this.nativeMeshes.get(o.id),decorationMatrix(o),vv,alpha)}ctx.fillStyle=theme.ground;ctx.fillRect(0,v.h*.49,v.w,v.h*.51);
    const poly=(ps,color)=>{const qs=ps.map(proj);if(qs.some(q=>!q.visible))return;ctx.fillStyle=color;ctx.beginPath();qs.forEach((q,j)=>j?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.closePath();ctx.fill()};
    const line=(a,b,color,width)=>{const q=proj(a),r=proj(b);if(!q.visible||!r.visible)return;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(r.x,r.y);ctx.stroke()};
    // Shared low-detail scenery in the same 3D coordinates as the WebGL scene.

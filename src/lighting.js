@@ -1,4 +1,4 @@
-import {hash32,clamp} from './math.js?v=1.6.0';
+import {hash32,clamp} from './math.js?v=1.6.1';
 const ids=['sunset','alpine','fuji','castle','aurora','sea','spires','planet','cloudpalace'];
 export function backgroundFor(seed,theme,style='auto'){return style==='auto'?ids[hash32(seed+theme.id)%ids.length]:style}
 export function nightAt(world,x,settings={}){const ns=world.themes.map(t=>['aurora','planet'].includes(backgroundFor(world.seed,t,settings.backgroundStyle||'auto'))?1:0),blend=world.blendAt(x);return ns[0]+(ns[1]-ns[0])*blend}

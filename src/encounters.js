@@ -1,8 +1,8 @@
-import {FLIGHT_ART,artBounds,artParts,billboardModel} from './artwork.js?v=1.6.0';
-import {clamp,hash32} from './math.js?v=1.6.0';
-import {add,sub,scale,normalize,cross} from './world.js?v=1.6.0';
+import {FLIGHT_ART,artBounds,artParts,billboardModel} from './artwork.js?v=1.6.1';
+import {clamp,hash32} from './math.js?v=1.6.1';
+import {add,sub,scale,normalize,cross} from './world.js?v=1.6.1';
 
-export {FLIGHT_TYPES as ESCORT_TYPES} from './flight.js?v=1.6.0';
+export {FLIGHT_TYPES as ESCORT_TYPES} from './flight.js?v=1.6.1';
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
 export function projectPoint(m,p,W,H){const v=[0,0,0,0];for(let row=0;row<4;row++)for(let col=0;col<4;col++)v[row]+=m[col*4+row]*(col===3?1:p[col]);return{x:(v[0]/v[3]*.5+.5)*W,y:(.5-v[1]/v[3]*.5)*H,visible:v[3]>.05}}
 export function rayPoint(view,x,y,depth){const {camera,W,H,fov}=view,f=normalize(sub(camera.target,camera.eye)),r=normalize(cross(f,[0,1,0])),u=normalize(cross(r,f)),t=Math.tan(fov/2);return add(add(add(camera.eye,scale(f,depth)),scale(r,(x/W*2-1)*t*depth*W/H)),scale(u,(1-y/H*2)*t*depth))}
@@ -21,4 +21,4 @@ export function findStage(view,aspect){const {W,H}=view;for(const fraction of[.3
  if(best)return best;
  }return null}
 function lineClear(world,eye,point,margin){for(let j=1;j<=12;j++){const t=j/12,p=add(eye,scale(sub(point,eye),t));if(p[1]<world.surfaceY(p[0],p[2])+margin)return false}return true}
-export {FlightDirector as EscortDirector} from './flight.js?v=1.6.0';
+export {FlightDirector as EscortDirector} from './flight.js?v=1.6.1';

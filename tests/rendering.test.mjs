@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {SharedWorld} from '../src/world.js';
 import {Race,defaultSettings} from '../src/race.js';
-import {artworkBank,ART_SHEETS} from '../src/artwork.js?v=1.6.0';
+import {artworkBank,ART_SHEETS} from '../src/artwork.js?v=1.6.1';
 import {SharedRenderer} from '../src/renderer.js';
 // Verify the actual JavaScript renderer's WebGL protocol and frame pacing when CI has no browser WebGL.
 class FakeGL{

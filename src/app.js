@@ -1,12 +1,12 @@
-import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.6.0';
-import {SharedWorld} from './world.js?v=1.6.0';
-import {Race,defaultSettings,normalizeSettings,formatRaceTime} from './race.js?v=1.6.0';
-import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.6.0';
-import {SpeedEffects} from './effects.js?v=1.6.0';
-import {bindPress} from './touch.js?v=1.6.0';
-import {DECORATIONS} from './decorations.js?v=1.6.0';
-import {BACKGROUNDS} from './background.js?v=1.6.0';
-import {loadArtwork} from './artwork.js?v=1.6.0';
+import {ISLANDS,BASE_STARS,BASE_TIMES,clamp,correctText,formatNumber,graphValue} from './math.js?v=1.6.1';
+import {SharedWorld} from './world.js?v=1.6.1';
+import {Race,defaultSettings,normalizeSettings,formatRaceTime} from './race.js?v=1.6.1';
+import {SharedRenderer,CanvasFallbackRenderer,PLAYER_COLORS} from './renderer.js?v=1.6.1';
+import {SpeedEffects} from './effects.js?v=1.6.1';
+import {bindPress} from './touch.js?v=1.6.1';
+import {DECORATIONS} from './decorations.js?v=1.6.1';
+import {BACKGROUNDS} from './background.js?v=1.6.1';
+import {loadArtwork} from './artwork.js?v=1.6.1';
 let artworkReady=false;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -111,7 +111,7 @@ function tick(now){advanceTo(now);if(goUntil&&now>goUntil){$('#countdown').class
  if(contextLost){switchFallback();contextLost=false}
  try{const clock=race.status==='lobby'?now/1000:race.elapsed;renderer?.frame(race.players,now,false,clock);effects?.frame(race.players,clock)}catch(error){console.error(error);manualPaused=true;switchFallback();toast('已切換到相容畫面；按繼續可接著遊玩。')}
  for(const p of race.players){const e=$('#exclaim-'+p.lane),point=renderer?.projections[p.lane];e.classList.toggle('hidden',p.exclaim<=0||!point?.visible);if(p.exclaim>0&&point){e.style.left=point.x+'px';e.style.top=point.y+'px'}}
- if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.6`;lastStatus=now}
+ if(now-lastStatus>1500){$('#engineStatus').textContent=`${renderer?.mode||'繪圖不可用'} · ${renderer?.realFps||'—'} FPS · ${renderer?.effective==='low'?'省電畫質':renderer?.effective==='high'?'高畫質':'標準畫質'} · V1.6.1`;lastStatus=now}
  requestAnimationFrame(tick);
 }
 function initRenderer(fallback=false){const canvas=$('#worldCanvas');try{renderer=fallback?new CanvasFallbackRenderer(canvas,$('#gameBoard'),$$('.lane')):new SharedRenderer(canvas,$('#gameBoard'),$$('.lane'));renderer.setQuality(settings.quality);renderer.setSceneSettings(settings);canvas.addEventListener('webglcontextlost',()=>{manualPaused=true;contextLost=true;updatePauseUI()});return true}catch(e){console.error(e);if(!fallback){const fresh=canvas.cloneNode(false);canvas.replaceWith(fresh);return initRenderer(true)}toast('此瀏覽器無法建立遊戲畫面，請使用已開啟硬體加速的 Chrome 或 Edge。');return false}}

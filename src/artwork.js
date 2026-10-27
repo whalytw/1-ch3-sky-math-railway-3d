@@ -1,6 +1,6 @@
-import {clamp} from './math.js?v=1.6.0';
-import {add,sub,scale,normalize,cross} from './world.js?v=1.6.0';
-import {ANIMATIONS,animationPhase} from './animation.js?v=1.6.0';
+import {clamp} from './math.js?v=1.6.1';
+import {add,sub,scale,normalize,cross} from './world.js?v=1.6.1';
+import {ANIMATIONS,animationPhase} from './animation.js?v=1.6.1';
 const single=file=>({file:'single-'+file+'.png',cols:1,rows:1});
 const views=file=>({file:'views-'+file+'.png',cols:2,rows:2,isolatedViews:true});
 export const ART_SHEETS=Object.freeze({witch:views('witch'),whale:views('whale'),bird:views('bird'),dragon:views('dragon'),hero:views('hero'),robot:views('robot'),biplane:views('biplane'),airship:views('airship'),unicorn:views('unicorn'),butterfly:single('butterfly'),jellyfish:single('jellyfish'),cloudsheep:single('cloudsheep'),kite:single('kite'),balloon:single('balloon'),island:{file:'distant-castle-island.png',cols:1,rows:1}});
@@ -14,11 +14,11 @@ export function billboardModel(view,part){const f=normalize(sub(view.camera.targ
 const dot=(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0);
 export function desiredView(item,camera){const dir=normalize(item.forward||[1,0,0]),to=normalize(sub(camera.eye,item.point)),f=normalize(sub(camera.target||item.point,camera.eye)),r=normalize(cross(f,[0,1,0])),u=normalize(cross(r,f)),front=dot(to,dir),sx=dot(dir,r),sy=dot(dir,u);return {index:Math.abs(front)>.78?(front>0?2:0):to[1]<-.46?3:1,front:front>0,side:sx,sx,sy}}
 export function cellFor(id,index){return FLIGHT_ART[id].multi?[index%2,Math.floor(index/2)]:[0,0]}
-export function artPose(id,key,item,view,clock,states){const def=FLIGHT_ART[id],desired=desiredView(item,view.camera),index=def.multi?desired.index:0,sideView=index===1||index===3,flip=def.multi&&sideView&&desired.sx<0;let kind=ANIMATIONS[id].kind,bank=item.bank||0;
+export function artPose(id,key,item,view,clock,states){const def=FLIGHT_ART[id],desired=desiredView(item,view.camera),index=def.multi?desired.index:0,sideView=index===1||index===3,flip=(def.multi&&sideView||id==='cloudsheep')&&desired.sx<0;let kind=ANIMATIONS[id].kind,bank=item.bank||0;
  if(def.multi&&sideView){const screenAngle=Math.atan2(desired.sy,desired.sx),base=index===3?.25:0;bank=screenAngle-(flip?Math.PI-base:base);bank=Math.atan2(Math.sin(bank),Math.cos(bank));if(['birds','dragons','unicorns'].includes(id))kind=16}
  else if(def.multi&&['heroes','robots','witches','whales'].includes(id))kind=18;
  states?.set(key+':'+view.lane,{index,time:clock});if(states?.size>180)states.delete(states.keys().next().value);
- return {index,from:cellFor(id,index),to:cellFor(id,index),mix:0,flap:0,flip,sheet:ART_SHEETS[def.sheet],def,turnScale:1,kind,phase:animationPhase(id,clock,item.phase||0),mirror:1,bank};
+ return {index,from:cellFor(id,index),to:cellFor(id,index),mix:0,flap:0,flip,sheet:ART_SHEETS[def.sheet],def,turnScale:1,kind,phase:id==='cloudsheep'&&Number.isFinite(item.hopPhase)?item.hopPhase*Math.PI*2:animationPhase(id,clock,item.phase||0),mirror:1,bank};
 }
 // Runtime texture isolation: label four disconnected characters, retain only that
 // character's alpha and edge pixels, and fit each to a padded equal cell.
@@ -35,4 +35,4 @@ export function isolateViewAtlas(image){const canvas=document.createElement('can
  }return packed;
 }
 let bank;export function artworkBank(){if(bank)return bank;return bank={images:new Map(),ready:false,error:null,promise:null}}
-export function loadArtwork(){const b=artworkBank();if(b.promise)return b.promise;if(typeof Image==='undefined'){b.ready=true;return b.promise=Promise.resolve(b)}b.promise=Promise.all(Object.entries(ART_SHEETS).map(([key,sheet])=>new Promise((resolve,reject)=>{const im=new Image();im.decoding='async';im.onload=()=>{try{b.images.set(key,sheet.isolatedViews?isolateViewAtlas(im):im);resolve()}catch(e){reject(e)}};im.onerror=()=>reject(Error('無法載入 '+sheet.file));im.src=new URL('../assets/'+sheet.file+'?v=1.6.0',import.meta.url).href}))).then(()=>{b.ready=true;return b}).catch(e=>{b.error=e;throw e});return b.promise}
+export function loadArtwork(){const b=artworkBank();if(b.promise)return b.promise;if(typeof Image==='undefined'){b.ready=true;return b.promise=Promise.resolve(b)}b.promise=Promise.all(Object.entries(ART_SHEETS).map(([key,sheet])=>new Promise((resolve,reject)=>{const im=new Image();im.decoding='async';im.onload=()=>{try{b.images.set(key,sheet.isolatedViews?isolateViewAtlas(im):im);resolve()}catch(e){reject(e)}};im.onerror=()=>reject(Error('無法載入 '+sheet.file));im.src=new URL('../assets/'+sheet.file+'?v=1.6.1',import.meta.url).href}))).then(()=>{b.ready=true;return b}).catch(e=>{b.error=e;throw e});return b.promise}
